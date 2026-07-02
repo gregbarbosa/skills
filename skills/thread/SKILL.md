@@ -7,7 +7,7 @@ Before using this skill, check that `HERDR_ENV=1`. If it is not set to `1`, tell
 
 When invoked, execute these steps immediately without asking for confirmation:
 
-1. **Select the harness and prepare `<request>`.** Read the registry at `~/.claude/skills/thread/harnesses.json`. If it is missing or not valid JSON, fall back to this inline default and tell the user the config file was ignored:
+1. **Select the harness and prepare `<request>`.** Read the registry at `harnesses.json` in **this skill's own directory** — the `Base directory for this skill:` path shown at the top of this skill (so it resolves for both global `~/.claude/skills/thread/` and project-level `.claude/skills/thread/` installs). If that file is missing or not valid JSON, fall back to this inline default and tell the user the config file was ignored:
 
    ```json
    { "default": "claude", "prompt_on_missing": true, "harnesses": [
