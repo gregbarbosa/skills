@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Node (npx skills may drop these in some flows)
+node_modules/
+
+# Editor
+.vscode/
+.idea/
