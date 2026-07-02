@@ -1,0 +1,5 @@
+{
+  "worker":  { "command": "claude", "model_flag": "--model sonnet" },
+  "advisor": { "command": "claude", "model_flag": "--model fable" },
+  "layout_threshold": 3
+}
