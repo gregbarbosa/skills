@@ -19,6 +19,8 @@ When invoked, execute these steps immediately without asking for confirmation:
    ] }
    ```
 
+   Flag semantics differ per harness (verified 2026-07-02): `--permission-mode auto` (claude-family) and `opencode --auto` auto-approve tool permissions; pi has no permission prompts at all — its `--approve` instead skips the project-local-files trust prompt at startup, which would otherwise block readiness.
+
    Detect the harness from the user's message and produce `<request>` (the message with the harness selection removed):
    - **Explicit form:** if the message starts with `--harness <name>` or `-h <name>`, select `<name>` and strip the flag + name from the message to form `<request>`. (Escape hatch for tasks that legitimately begin with a harness-named word.)
    - **Bare token:** otherwise, if the first whitespace-delimited token equals a registry `name`, select it and drop that token to form `<request>`.
@@ -44,7 +46,13 @@ When invoked, execute these steps immediately without asking for confirmation:
 5. Create a new herdr tab with that label: `herdr tab create --workspace <N> --label "<label>"`
 6. Parse the root pane ID from the JSON response (field: `result.root_pane.pane_id`). Call this `<pane_id>`. Also note the new pane's `cwd` from the response — if it differs from the directory the task concerns, pass ABSOLUTE paths in the request so the agent can find files regardless of its working directory.
 7. Launch the harness in that pane with its native auto flag: `herdr pane run "<pane_id>" "<command> <auto_flag>"`.
-8. Wait for the prompt: `herdr wait output "<pane_id>" --match "❯" --regex --timeout 60000`
+8. **Wait for readiness via agent-status, not prompt glyphs.** Harness TUIs differ (claude/glm/ds show `❯`; pi shows a status line; opencode shows an "Ask anything…" box), but herdr's agent detection normalizes them: a pane goes `unknown → idle` once any recognized harness TUI is ready. Run:
+
+   `herdr wait agent-status "<pane_id>" --status idle --timeout 60000`
+
+   If that times out, fall back before giving up: read the pane (`herdr pane read "<pane_id>"`). If the output shows a shell error (`command not found`, crash/stack trace), report the launch failure to the user and stop. If it shows a TUI that simply wasn't status-detected, wait ~5s more and proceed to step 9 anyway — send-text is harmless to a ready TUI.
+
+   Do NOT use agent-status to detect *completion* later: terminal statuses vary by harness (pi ends `done`, opencode has been observed stuck at `working` after finishing). Completion is signaled only by the callback in step 9.
 9. Send `<request>` as the initial message, WITH a callback instruction appended so the agent pings the caller when done (omit the callback paragraph if `<caller_pane>` was empty in step 3):
 
    `herdr pane send-text "<pane_id>" "<request>\n\nWHEN YOU FINISH: notify the requesting agent by running these two commands so a message lands in their pane — herdr pane send-text \"<caller_pane>\" \"THREAD COMPLETE: <one-line summary of what you produced, incl. any file path>\"  then  herdr pane send-keys \"<caller_pane>\" Enter"`
