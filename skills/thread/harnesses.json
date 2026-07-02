@@ -1,0 +1,11 @@
+{
+  "default": "claude",
+  "prompt_on_missing": true,
+  "harnesses": [
+    { "name": "claude",   "label": "Claude (Anthropic)", "command": "claude",   "auto_flag": "--permission-mode auto" },
+    { "name": "glm",      "label": "GLM (Z.ai)",         "command": "glm",      "auto_flag": "--permission-mode auto" },
+    { "name": "ds",       "label": "DeepSeek",           "command": "ds",       "auto_flag": "--permission-mode auto" },
+    { "name": "opencode", "label": "OpenCode",           "command": "opencode", "auto_flag": "--auto" },
+    { "name": "pi",       "label": "Pi",                 "command": "pi",       "auto_flag": "--approve" }
+  ]
+}
