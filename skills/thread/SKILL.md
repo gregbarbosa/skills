@@ -53,10 +53,17 @@ When invoked, execute these steps immediately without asking for confirmation:
    If that times out, fall back before giving up: read the pane (`herdr pane read "<pane_id>"`). If the output shows a shell error (`command not found`, crash/stack trace), report the launch failure to the user and stop. If it shows a TUI that simply wasn't status-detected, wait ~5s more and proceed to step 9 anyway — send-text is harmless to a ready TUI.
 
    Do NOT use agent-status to detect *completion* later: terminal statuses vary by harness (pi ends `done`, opencode has been observed stuck at `working` after finishing). Completion is signaled only by the callback in step 9.
-9. Send `<request>` as the initial message, WITH a callback instruction appended so the agent pings the caller when done (omit the callback paragraph if `<caller_pane>` was empty in step 3):
+9. Send `<request>` as the initial message, WITH a callback instruction appended so the agent pings the caller when done (omit the callback clause if `<caller_pane>` was empty in step 3). **Keep the whole payload on ONE line — do NOT insert `\n`/`\n\n` as a separator.** Under bracketed paste, embedded newlines do not submit (only the Enter in step 10 does), and they slow paste ingest, widening the step-10 race that leaves the prompt stuck unsent in the input box. Use a ` || ` sentinel instead of a blank line, and single-quote the callback so nothing needs escaping inside the double-quoted payload:
 
-   `herdr pane send-text "<pane_id>" "<request>\n\nWHEN YOU FINISH: notify the requesting agent by running these two commands so a message lands in their pane — herdr pane send-text \"<caller_pane>\" \"THREAD COMPLETE: <one-line summary of what you produced, incl. any file path>\"  then  herdr pane send-keys \"<caller_pane>\" Enter"`
-10. Press Enter: `herdr pane send-keys "<pane_id>" Enter`
+   `herdr pane send-text "<pane_id>" "<request>  ||  WHEN YOU FINISH: notify the requesting agent so a message lands in their pane — run  herdr pane send-text '<caller_pane>' 'THREAD COMPLETE: <one-line summary incl. any file path>'  then  herdr pane send-keys '<caller_pane>' Enter"`
+
+10. **Submit with verification, not a blind Enter.** The paste ingests asynchronously; an Enter fired immediately as a *separate* request can land before the TUI commits the text and be dropped — the intermittent "text sits in the input box, never sent" bug. Poll, don't fixed-sleep:
+    a. **Confirm the paste landed:** `herdr pane read "<pane_id>"` and check the input box shows the **tail** of `<request>` (the last few words before ` || `). Re-read a few times (short waits) until it appears.
+    b. **Enter:** `herdr pane send-keys "<pane_id>" Enter`.
+    c. **Verify it submitted:** read again — if the payload tail is STILL in the input box (unsent), press Enter once more. Repeat up to ~3 times.
+    d. Submitted = the input box is empty / the agent flipped to `working` (the text has left the box). If it never submits after ~3 tries, report the stuck paste to the user rather than assuming it ran.
+
+    (If herdr later exposes an atomic text-plus-Enter into a *running* TUI — `pane run` delivers both in one request but currently targets the shell to spawn the harness, not a live TUI — prefer that: it eliminates this inter-request race by construction.)
 11. Report the tab label, pane ID, the caller pane the agent will call back to, and confirm the agent is running. Note that the callback is fire-and-forget (best-effort): if the spawned agent crashes before its final step the ping won't fire, so for critical work keep a fallback (ask, or check for the expected output file).
 
 The user's request is the message they sent with this invocation, minus any harness-selection token consumed in step 1.
