@@ -8,6 +8,7 @@ Personal, reusable [Agent Skills](https://skills.sh) for AI coding agents: Claud
 | --- | --- |
 | `thread` | Launch a new agent thread in a herdr tab via a chosen harness, with a fire-and-forget callback to the caller's pane. Requires herdr. |
 | `advise` | Offer to fan work out across parallel herdr sessions, agree scope, then spin up one Sonnet worker per project plus a Fable advisor that watches and nudges them. Surfaces on its own when work gets complex; never spawns without agreement. Requires herdr. |
+| `component-system-builder` | Stand up a closed-world component + agent-rules system for a platform (Electron, Astro, SwiftUI, …), or retrofit one onto an existing project through an audited, pass-by-pass loop. Makes AI-generated apps consistent by removing choices. |
 
 ### `thread` harness picker
 
@@ -41,6 +42,18 @@ Config is `skills/advise/advise.json` (worker model, advisor model, and `layout_
 
 This is not required for the skill to work and does not travel with the package.
 
+### `component-system-builder`: consistency by removing choices
+
+The premise is that an agent produces consistent, polished UI when the platform gives it fewer choices, not when the model is smarter. The skill builds six artifacts — a component kit with docs beside source, seed-variable theming, a pattern-table gate, rules skills plus a tiny always-on constraints file, context-economy plumbing, and a scaffold — and places each rule as high on an enforcement ladder as the platform allows (prose → checklists → the gate → closed type surfaces → lint/CI → physically blocked).
+
+Two modes. Green-field starts from a platform scaffold and builds outward. Retrofit runs an audit loop over an existing project, one merge-able commit per pass: inventory, tokens, componentize, build the gate, then mechanical enforcement. Each pass writes its state into `docs/system-audit.md`, so a cold session can resume from it.
+
+```shell
+/component-system-builder retrofit a component system onto this Astro site
+```
+
+Three reference files (`references/operations.md`, `references/enforcement.md`, `references/runtime-discipline.md`) load on demand rather than up front.
+
 ## Install
 
 Requires Node.js (for `npx`).
@@ -72,6 +85,8 @@ Pushed changes are live immediately; `npx skills add` pulls `main`.
 ```
 skills/
   <name>/SKILL.md
+  <name>/references/*.md      # optional, loaded on demand
+  <name>/<config>.json        # optional
 ```
 
-Each skill is one folder containing a `SKILL.md`. The `skills` CLI discovers them automatically.
+Each skill is one folder containing a `SKILL.md`. The `skills` CLI discovers them automatically, and sibling files and subdirectories install alongside it.
