@@ -1,0 +1,5 @@
+{
+  "agent": { "command": "claude", "model_flag": "--model sonnet" },
+  "model_floor": "sonnet",
+  "layout_threshold": 4
+}
