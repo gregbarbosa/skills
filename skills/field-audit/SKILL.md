@@ -28,17 +28,22 @@ not this one. There is only one copy on purpose; a second copy goes stale.
 Find it once and call it `<agent_dir>`:
 
 ```bash
-find ~/.claude -maxdepth 5 -type d -path '*skills/field-agent'
+find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null
 ```
 
 Do not use a `*` glob in a plain `ls`; zsh aborts the whole command when one
 glob does not match. `field.py` stores its state in `~/.claude/field/`.
 
+The search covers BOTH roots on purpose. A single-agent install puts skills in
+`~/.claude/skills`; a multi-agent install puts them in `~/.agents/skills`, and
+Codex, Copilot, Gemini and pi read the second one. Searching only `~/.claude`
+makes this skill fail on a perfectly normal multi-agent install.
+
 If that `find` returns nothing, the suite is not fully installed. Do not
 improvise a replacement and do not write your own ledger. Tell the user to run:
 
 ```bash
-npx skills add gregbarbosa/skills -s herdr -s field-agent -s field-handler -s field-audit -g -a claude-code -y
+npx skills add gregbarbosa/skills -s '*' -g -y
 ```
 
 Then stop.

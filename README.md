@@ -29,7 +29,7 @@ The registry is `skills/field-agent/harnesses.json` (`claude`, `glm`, `ds`, `ope
 **The four `field-*` and `herdr` skills are one suite. Install them together:**
 
 ```shell
-npx skills add gregbarbosa/skills -s herdr -s field-agent -s field-handler -s field-audit -g -a claude-code -y
+npx skills add gregbarbosa/skills -s '*' -g -y
 ```
 
 The `skills` packaging format has no group or dependency concept, so the grouping is a convention the skills state and check themselves: `field-handler` and `field-audit` look for `field-agent`'s directory on startup, and stop with this command if it is missing.

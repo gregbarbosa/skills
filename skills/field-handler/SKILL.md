@@ -22,9 +22,14 @@ Two directories matter below:
   this skill:` path at the top. It holds `handler.json`.
 - `<agent_dir>` — the `field-agent` skill's directory. It holds `field.py` and
   `harnesses.json`. Find it with
-  `find ~/.claude -maxdepth 5 -type d -path '*skills/field-agent'`.
+  `find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null`.
   Do not use a `*` glob in a plain `ls`; zsh aborts the whole command when one
   glob does not match, and you lose the valid path too.
+
+The search covers BOTH roots on purpose. A single-agent install puts skills in
+`~/.claude/skills`; a multi-agent install puts them in `~/.agents/skills`, and
+Codex, Copilot, Gemini and pi read the second one. Searching only `~/.claude`
+makes this skill fail on a perfectly normal multi-agent install.
 
 **These four skills are one suite.** `field-agent`, `field-handler`,
 `field-audit` and `herdr` install together and depend on each other. If the
@@ -33,7 +38,7 @@ improvise a replacement and do not write your own ledger. Tell the user to run
 the command below, then stop.
 
 ```bash
-npx skills add gregbarbosa/skills -s herdr -s field-agent -s field-handler -s field-audit -g -a claude-code -y
+npx skills add gregbarbosa/skills -s '*' -g -y
 ```
 
 ## You are the handler
