@@ -32,6 +32,19 @@ The registry is `skills/field-agent/harnesses.json` (`claude`, `glm`, `ds`, `ope
 npx skills add gregbarbosa/skills -s '*' -g -y
 ```
 
+That installs into `~/.agents/skills` and links every detected agent to it.
+
+If you have PromptScript installed, expect a line like
+`✗ herdr → PromptScript does not support global skill installation`. **It is
+harmless.** PromptScript has no global scope; every other agent still installs.
+Check with `npx skills list -g`. To avoid the message, name your agents instead,
+repeating `-a` because a comma list is rejected:
+
+```shell
+npx skills add gregbarbosa/skills -s '*' -g -y \
+  -a claude-code -a pi -a opencode -a hermes-agent -a gemini-cli
+```
+
 The `skills` packaging format has no group or dependency concept, so the grouping is a convention the skills state and check themselves: `field-handler` and `field-audit` look for `field-agent`'s directory on startup, and stop with this command if it is missing.
 
 
