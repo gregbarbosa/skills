@@ -11,9 +11,10 @@ user that you do not run inside a herdr pane. Then stop.
 Run `herdr --version`. This skill needs **0.9.0 or later**. On an earlier
 version, tell the user to run `herdr update`. Then stop.
 
-Read the **`herdr`** skill for the command surface and the **`field-agent`**
-skill for the dispatch contract; this is its multi-agent form, on the same
-ledger, watch loop and three rules.
+Run `herdr --skill` for the command surface, then read the **`herdr`** skill for
+the semantics it leaves out and the **`field-agent`** skill for the dispatch
+contract; this is its multi-agent form, on the same ledger, watch loop and
+three rules.
 
 Two directories matter below:
 
