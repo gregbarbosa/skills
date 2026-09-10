@@ -306,41 +306,19 @@ python3 <skill_dir>/field.py status
 
 ## Step 7: Send the brief
 
-The brief is one prompt with two halves: the task with everything the agent
-needs to do it, and the reporting contract. On herdr 0.9.0 a multi-line prompt
-arrives byte-identical through `herdr agent prompt` (bracketed paste; measured
-2026-09-10 on claude). The pane shows it collapsed as `[Pasted text +N lines]`;
-the agent's transcript holds the full text.
+One prompt, two halves: the task with everything the agent needs, then the
+reporting contract. herdr delivers a multi-line prompt intact (bracketed paste;
+the pane shows it collapsed as `[Pasted text +N lines]`, the transcript holds it).
+Read `brief_format` from the harness entry: `blocks` is the form below, `line` is
+the one-line fallback further down.
 
-Read `brief_format` from the harness entry (`harnesses.json`). `blocks` is the
-default and the form below. `line` is the one-line fallback further down, for a
-harness whose paste behavior has not been verified.
+Keep the opener first. It is what tells the agent the message is a brief; without
+it Sonnet 5 reads the identity block as an injection and goes silent (5 of 5 runs).
 
-**Order matters. The opener is not optional.** Measured 2026-09-10 on Sonnet 5,
-five runs per form: with the task first and the identity block appended after
-it, 5 of 5 field agents read the block as a prompt injection, did the task, and
-sent no report (two stalled on a question aimed at a human who was not there).
-With `Field agent brief from your handler.` as the first line, 5 of 5 reported
-normally, in the blocks form and in the one-line form alike.
-
-**Context is part of the task.** A field agent starts with an empty context
-window. It has not seen this conversation, the brain, or the files you have
-open. Everything it needs goes in the `<context>` block, as absolute paths and
-plain statements: the files to read first (the repo's CLAUDE.md or AGENTS.md,
-the README, the spec or plan, the deliverable it extends), the facts you have
-already established (decisions, numbers, gotchas), where credentials come from
-(a path or a command, never a value), and the conventions that apply. The test
-is simple: if you would have to tell a new teammate, it goes in the block. A
-brief that says "fix the parser" and nothing else produces an agent that
-rediscovers, or guesses, everything you already knew. Delete any line you have
-nothing for; never send a placeholder.
-
-Two rules exist to cut overhead, measured 2026-09-10 against a native subagent on
-the same task: the field agent spent 4 of its 9 tool calls on the contract, and
-typed its result twice (the COMPLETE report, then a closing summary nobody reads).
-The notification is chained onto the COMPLETE command, and the COMPLETE report is
-the agent's last message. START stays: it is the only early signal that the brief
-was understood rather than refused.
+Fill the context block. A field agent starts with an empty context window, so give
+it what you would tell a new teammate: files to read first (absolute paths), facts
+already established, where credentials come from (never the value), and the
+conventions that apply. Delete any line you have nothing for.
 
 Write the brief in a quoted heredoc so nothing needs escaping. Single-quote the
 inner commands.
@@ -400,8 +378,7 @@ herdr agent prompt "<name>" "$BRIEF" --wait --until working --timeout 15000
 
 Replace `m` with your actual name from step 1.
 
-**One-line form (`brief_format: line`).** The same content with ` || ` between
-the parts, opener first. Use it only for a harness whose entry says `line`.
+**One-line form (`brief_format: line`).** Same content, ` || ` between parts, opener first.
 
 ```bash
 herdr agent prompt "<name>" "Field agent brief from your handler.  ||  <request>  ||  CONTEXT, read these first: <absolute paths>. Facts you can rely on: <facts>. Credentials: <where they come from, never the value>. Conventions: <rules>.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<name>' in herdr pane <pane_id>. Your handler is agent 'm' in pane <self_pane>.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <name>: COMPLETE:' and send it and the notification as ONE command: herdr agent prompt 'm' 'FIELD REPORT <name>: COMPLETE: ...' && herdr notification show 'Field agent done: <name>' --sound done  ||  Your COMPLETE report is your final message; do not write a second summary after it.  ||  If your report command fails, retry it twice before you continue.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
