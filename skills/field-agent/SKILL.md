@@ -3,7 +3,7 @@ name: field-agent
 description: Use when the user asks to launch, spawn, dispatch or hand off work to another agent (claude / opus / glm / ds / opencode / pi) in a herdr tab or worktree. You act as the handler. The new agent is a field agent. This skill names the field agent, gives it a two-way reporting contract, records it in the field ledger, and arms a watch loop so you never lose track of it. Requires herdr >= 0.9.0 and HERDR_ENV=1.
 ---
 
-# field-agent — dispatch a field agent and keep it
+# field-agent: dispatch a field agent and keep it
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
@@ -37,23 +37,23 @@ The field agent finishes, nobody reads it, and the work is lost.
 
 ## The three rules
 
-**Rule 1 — Name everything. Address by name, never by pane id.**
+**Rule 1: Name everything. Address by name, never by pane id.**
 A pane id changes when the pane moves, and a closed pane's id resolves to
 nothing. A callback sent to a stale pane id goes nowhere. Every field agent
 gets a name. You get a name. Every message between you uses names.
 
-**Rule 2 — Every brief carries the identity block.**
+**Rule 2: Every brief carries the identity block.**
 A field agent cannot report to you if it does not know who you are. The brief
 always states the field agent's own name and pane, your name and pane, and the
 exact command that reaches you.
 
-**Rule 3 — The callback is best effort. The watch loop is the guarantee.**
+**Rule 3: The callback is best effort. The watch loop is the guarantee.**
 A field agent that crashes sends no callback. Arm the watch loop, so herdr's
 own status detection catches what the callback misses.
 
 ---
 
-## Step 1 — Claim your own handler name
+## Step 1: Claim your own handler name
 
 Do this once per session, before your first dispatch.
 
@@ -70,7 +70,7 @@ everywhere below.
 Read the pane id live. Do not trust `$HERDR_PANE_ID`; it goes stale after a
 pane move.
 
-## Step 2 — Arm the watch loop
+## Step 2: Arm the watch loop
 
 Do this once per session, before your first dispatch. Use the `Monitor` tool:
 
@@ -103,9 +103,9 @@ The ledger and the watch loop are GLOBAL to this machine. `catchup` prints
 every unacknowledged agent, including ones another handler dispatched.
 Read a foreign record; do not prompt or close it.
 
-## Step 3 — Choose the harness and build the request
+## Step 3: Choose the harness and build the request
 
-Read the registry at `harnesses.json` in **this skill's own directory** — the
+Read the registry at `harnesses.json` in **this skill's own directory**, the
 `Base directory for this skill:` path at the top of this skill. If the file is
 missing or is not valid JSON, use this default and tell the user:
 
@@ -121,7 +121,7 @@ missing or is not valid JSON, use this default and tell the user:
 
 `kind` is the herdr agent kind of the TUI that the command finally runs. An
 entry whose `command` equals its `kind` is **canonical**; start it with
-`herdr agent start`. An entry whose `command` differs (glm, ds — wrappers
+`herdr agent start`. An entry whose `command` differs (glm, ds, wrappers
 around claude) is a **wrapper**; it takes the fallback path in step 5.
 
 Flag meanings differ per harness. `--permission-mode auto` (claude family) and
@@ -153,7 +153,7 @@ Detect the harness from the user's message. Then build `<request>`:
 
 Call the entry's values `<command>`, `<auto_flag>` and `<kind>`.
 
-## Step 4 — Name the field agent and choose its pane
+## Step 4: Name the field agent and choose its pane
 
 Derive `<name>`: kebab-case, a maximum of 24 characters, taken from the task.
 Examples: `parser-overflow`, `api-test-coverage`, `qring-teardown`. The name
@@ -192,9 +192,9 @@ directory too: `.result.worktree.path` for a worktree. If it
 differs from the directory the task concerns, put **absolute paths** in the
 brief.
 
-## Step 5 — Launch the harness
+## Step 5: Launch the harness
 
-**Canonical harness** (`command` equals `kind`) — one command starts it, names
+**Canonical harness** (`command` equals `kind`): one command starts it, names
 it, and waits for readiness:
 
 ```bash
@@ -209,7 +209,7 @@ pane. Startup defaults to a 30-second timeout. If a dialog blocks the agent
 during startup, herdr returns `agent_not_ready` but keeps the name usable for
 `agent read` and `agent send-keys`. Clear the dialog, then continue.
 
-**Wrapper harness** (`command` differs from `kind`, such as glm and ds) — run
+**Wrapper harness** (`command` differs from `kind`, such as glm and ds): run
 it, **wait for herdr to DETECT it**, then wait for readiness, then **name it**.
 Do not skip the rename; an unnamed agent breaks Rule 1:
 
@@ -281,7 +281,7 @@ If the launch fails, read the pane. A shell error (`command not found`, a stack
 trace) means the launch failed; tell the user and stop. A TUI that herdr did
 not detect is safe; wait about 5 seconds and continue.
 
-## Step 6 — Register the field agent in the ledger
+## Step 6: Register the field agent in the ledger
 
 Do this **before** you prompt. A crash between the prompt and the register call
 leaves an untracked agent.
@@ -298,15 +298,17 @@ compaction and your restart. When you lose track of your agents, read it:
 python3 <skill_dir>/field.py status
 ```
 
-## Step 7 — Send the brief
+## Step 7: Send the brief
 
 Send the request and the identity block together, as one prompt. Keep it on one
 line. Use ` || ` as a separator instead of a blank line. Single-quote the inner
 commands, so nothing needs escaping.
 
 ```bash
-herdr agent prompt "<name>" "<request>  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<name>' in herdr pane <pane_id>. Your handler is agent 'm' in pane <self_pane>.  ||  REPORT TO YOUR HANDLER by running this command — this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START — one line when you understand the task and begin; (2) MILESTONE — one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED — immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE — when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <name>: COMPLETE —'. Then run  herdr notification show 'Field agent done: <name>' --sound done  ||  If your report command fails, retry it twice before you continue.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
+herdr agent prompt "<name>" "Field agent brief from your handler.  ||  <request>  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<name>' in herdr pane <pane_id>. Your handler is agent 'm' in pane <self_pane>.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <name>: COMPLETE:'. Then run  herdr notification show 'Field agent done: <name>' --sound done  ||  If your report command fails, retry it twice before you continue.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
 ```
+
+The brief opens with the sentence `Field agent brief from your handler.` BEFORE the task. Measured 2026-09-10 on Sonnet 5: with the task first and the identity block appended after ` || `, 5 of 5 field agents read the block as a prompt injection, did the task, and sent no report (two stalled on a question aimed at a human who was not there). With the opener first, 5 of 5 reported normally. Keep the opener; the rest of the template is unchanged.
 
 Replace `m` with your actual name from step 1.
 
@@ -327,7 +329,7 @@ stalled sits in the INPUT BOX with no turn started. Only then send
 `herdr agent send-keys "<name>" Enter`. Retry a maximum of 3 times. If it never
 submits, tell the user. Do not assume that it ran.
 
-## Step 8 — Report the dispatch to the user
+## Step 8: Report the dispatch to the user
 
 State the field agent's name, its pane, its harness, its workspace and branch
 for a worktree, and the checkout path. Confirm that the watch loop is armed.
@@ -340,7 +342,7 @@ can clear the checkout. The branch stays in the source repo either way.
 
 ---
 
-## Triage — what you do when an event lands
+## Triage: what you do when an event lands
 
 A `[FIELD]` event or a `FIELD REPORT` message re-invokes you. Do not just
 acknowledge it. Work the sequence below.

@@ -3,7 +3,7 @@ name: field-handler
 description: Use when project work is growing complex or splitting into independent strands that could progress in parallel across separate sessions, such as several related projects moving toward one goal, or a single effort branching into pieces that don't depend on each other. This skill SURFACES the option and ALWAYS agrees the scope with the user before it spawns anything. Requires herdr >= 0.9.0 and HERDR_ENV=1.
 ---
 
-# field-handler — run a room of field agents
+# field-handler: run a room of field agents
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
@@ -18,9 +18,9 @@ rules.
 
 Two directories matter below:
 
-- `<skill_dir>` — this skill's own directory, from the `Base directory for
+- `<skill_dir>`: this skill's own directory, from the `Base directory for
   this skill:` path at the top. It holds `handler.json`.
-- `<agent_dir>` — the `field-agent` skill's directory. It holds `field.py` and
+- `<agent_dir>`: the `field-agent` skill's directory. It holds `field.py` and
   `harnesses.json`. Find it with
   `find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null`.
   Do not use a `*` glob in a plain `ls`; zsh aborts the whole command when one
@@ -102,7 +102,7 @@ If this skill surfaced on its own, you are in Phase A. An offer is not a spawn.
 
 ## Phase B: open the room
 
-### Step 0 — claim your own name and arm the watch loop
+### Step 0: claim your own name and arm the watch loop
 
 ```bash
 herdr pane current --current | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])'
@@ -137,7 +137,7 @@ and print every event twice. If you already armed one in this session through
 Then run `python3 <agent_dir>/field.py catchup` once, to surface an agent that
 settled before you armed the loop.
 
-### Step 1 — finalize the roster
+### Step 1: finalize the roster
 
 Build a list of `{ project_name, agent_name, abs_path, branch, task }`, plus
 the shared `theme` (one line). `agent_name` is a short kebab slug of the
@@ -145,7 +145,7 @@ project. herdr requires `[a-z][a-z0-9_-]{0,31}`; keep it under 24 characters.
 Names must be unique among live agents; check `herdr agent list`. On a name
 conflict at launch, retry once with a numeric suffix.
 
-### Step 2 — read the config
+### Step 2: read the config
 
 Read `handler.json` in `<skill_dir>`. Fields: `agent.command`,
 `agent.model_flag`, `model_floor`, `layout_threshold`. If the file is missing
@@ -171,7 +171,7 @@ and `auto_flag` from `harnesses.json` in `<agent_dir>`. An entry whose
 `command` equals its `kind` is **canonical**. An entry whose `command` differs
 (glm, ds) is a **wrapper** and takes the fallback path in step 5.
 
-### Step 3 — decide isolation per field agent
+### Step 3: decide isolation per field agent
 
 A field agent needs a git worktree when BOTH of these are true:
 
@@ -184,7 +184,7 @@ session in that directory, including this one. Two read-only agents in one
 repo need no worktree; keep them in the room workspace, and say in each task
 that the agent must not commit or change branch.
 
-### Step 4 — create the room, in the CURRENT workspace
+### Step 4: create the room, in the CURRENT workspace
 
 **Never create a workspace for the room.** The room belongs in the workspace
 the user is already in. You stay in your tab; the field agents get their own
@@ -198,7 +198,7 @@ Read your workspace live. Do not trust `$HERDR_WORKSPACE_ID`:
 WS=$(herdr pane current --current | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["workspace_id"])')
 ```
 
-**N <= `layout_threshold` — ONE tab, one pane per agent.** Create the tab with
+**N <= `layout_threshold`: ONE tab, one pane per agent.** Create the tab with
 the first agent's directory, because its root pane becomes that agent's pane:
 
 ```bash
@@ -219,7 +219,7 @@ Parse `.result.pane.pane_id` from each. Four agents give a 2x2 grid; three
 give a split left column beside a full-height right column. Verified on
 herdr 0.9.0.
 
-**N > `layout_threshold` — one tab per agent, still in `$WS`.** Above four,
+**N > `layout_threshold`: one tab per agent, still in `$WS`.** Above four,
 a grid gives each agent an unusably narrow column, so trade the single glance
 for readable panes:
 
@@ -253,7 +253,7 @@ binary is `HERDR_AGENT_DETECTION_MANIFEST_CATALOG_URL`, a different setting.
 herdr detects a wrapper harness by sniffing the TUI it draws, so the flag was
 always a no-op.
 
-### Step 5 — launch and register every field agent
+### Step 5: launch and register every field agent
 
 Launch and register EVERY field agent before you prompt any of them. Do not
 prompt yet.
@@ -270,7 +270,7 @@ Startup defaults to a 30-second timeout. If a dialog blocks the agent during
 startup, herdr returns `agent_not_ready` but keeps the name usable for
 `agent read` and `agent send-keys`. Clear the dialog, then continue.
 
-**Wrapper harness** (glm, ds) — run it, **wait for herdr to DETECT it**, then
+**Wrapper harness** (glm, ds): run it, **wait for herdr to DETECT it**, then
 wait for readiness, then **name it**. Do not skip the rename; an unnamed agent
 breaks Rule 1:
 
@@ -345,15 +345,17 @@ python3 <agent_dir>/field.py register "<agent_name>" "<pane_id>" "<harness>" \
   "<one-line task summary>" --branch "<branch or omit>" --cwd "<abs_path>"
 ```
 
-### Step 6 — send each field agent its task
+### Step 6: send each field agent its task
 
 Send the task and the identity block as ONE prompt, on one line, with ` || ` as
 the separator. Single-quote the inner commands, so nothing needs escaping.
 Replace `m` with your actual name from step 0.
 
 ```bash
-herdr agent prompt "<agent_name>" "<task>. Scope and read first; flag any irreversible change before you make it.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.  ||  REPORT TO YOUR HANDLER by running this command — this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START — one line when you understand the task and begin; (2) MILESTONE — one line each time you finish a unit, or about every 15 minutes; (3) BLOCKED — at once if you need a decision, a credential or an answer, and state the exact question; (4) COMPLETE — the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the last one with 'FIELD REPORT <agent_name>: COMPLETE —'.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  If your report command fails, retry it twice.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
+herdr agent prompt "<agent_name>" "Field agent brief from your handler.  ||  <task>. Scope and read first; flag any irreversible change before you make it.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a unit, or about every 15 minutes; (3) BLOCKED, at once if you need a decision, a credential or an answer, and state the exact question; (4) COMPLETE, the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the last one with 'FIELD REPORT <agent_name>: COMPLETE:'.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  If your report command fails, retry it twice.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
 ```
+
+The brief opens with the sentence `Field agent brief from your handler.` BEFORE the task. Measured 2026-09-10 on Sonnet 5: with the task first and the identity block appended after ` || `, 5 of 5 field agents read the block as a prompt injection, did the task, and sent no report (two stalled on a question aimed at a human who was not there). With the opener first, 5 of 5 reported normally. Keep the opener; the rest of the template is unchanged.
 
 **How to read the result.** On herdr 0.9.0, `--wait --until working` returns as
 soon as the agent is working, and it returns immediately when the agent is
@@ -372,7 +374,7 @@ box is stuck only when it matches what you just sent. Then send
 `herdr agent send-keys "<agent_name>" Enter`. Retry a maximum of 3 times. If it
 never submits, tell the user. Do not assume that it ran.
 
-### Step 7 — announce, then work the room
+### Step 7: announce, then work the room
 
 State in one line which field agents are up, their models, the TAB that holds
 them, which agents hold their own worktree (those sit in their own workspace,
@@ -385,7 +387,7 @@ they want it to run hands-off.
 Example: "Room up in tab 'field agents' beside this one: 3 Sonnet field agents
 (a, b, c); c holds its own worktree, so it sits in its own workspace. Watch
 loop armed. I will work the room from here, so this thread will fill with
-their reports — switch to that tab to watch them, or leave it to me."
+their reports; switch to that tab to watch them, or leave it to me."
 
 ---
 
