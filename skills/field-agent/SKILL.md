@@ -177,6 +177,16 @@ Read `.result.root_pane.pane_id` from either response; call it `<pane_id>`.
 `.result.tab.tab_id` and `.result.workspace.workspace_id`. For a worktree, read
 `.result.worktree.path` and put absolute paths in the brief.
 
+A worktree opens in its own workspace. To keep the agent beside you, move its
+pane into a tab of yours and continue with the new id the move returns:
+
+```bash
+herdr pane move "<pane_id>" --new-tab --workspace "$WS" --label "<name>" --no-focus
+```
+
+`<pane_id>` is then `.result.move_result.pane.pane_id`; the temporary
+workspace closes itself.
+
 ## Step 5: Launch the harness
 
 **Canonical harness** (`command` equals `kind`): one command starts it, names
@@ -361,9 +371,10 @@ no turn started; only then send `herdr agent send-keys "<name>" Enter`, at most
 State the field agent's name, its pane, its harness, its workspace and branch
 for a worktree, and the checkout path. Confirm that the watch loop is armed.
 
-For a worktree, tell the user that `herdr worktree remove --workspace <wN>`
-cleans it up after a merge and must run before the agent's pane closes: the
-workspace disappears with its last pane, and after that only
+For a worktree left in its own workspace, tell the user that
+`herdr worktree remove --workspace <wN>` cleans it up after a merge and must
+run before the agent's pane closes: the workspace disappears with its last
+pane. For a worktree moved beside you, and after any workspace is gone, only
 `git worktree remove <path>` clears the checkout. The branch stays either way.
 
 ---

@@ -106,10 +106,15 @@ fails with `workspace_group_close_required`, and `--group` closes every linked
 workspace. Its response holds `.result.root_pane.pane_id` and
 `.result.worktree.path`.
 
+To keep a worktree agent beside you instead, move its root pane into a tab of
+your own workspace: `herdr pane move <root_pane> --tab <tab> --split right
+--target-pane <pane>` (or `--new-tab --workspace <ws>` for a tab of its own).
+The pane gets a new id and the linked workspace closes itself.
+
 A worktree workspace closes with its last pane, and `worktree remove` takes
 only `--workspace <id>`, so remove the worktree before its pane closes;
-afterwards only `git worktree remove <path>` clears the checkout. The branch
-survives either way.
+afterwards, and for any moved pane, only `git worktree remove <path>` clears
+the checkout. The branch survives either way.
 
 A pane in your own directory that runs `git checkout -b` moves your branch
 too, so branch work belongs in a worktree.

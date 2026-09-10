@@ -206,19 +206,25 @@ herdr tab create --workspace "$WS" --label "<project>" --cwd "<abs_path>" --no-f
 
 Parse `.result.root_pane.pane_id`.
 
-**Worktree agents are the one exception.** `worktree create` always makes its
-own workspace, so those agents live outside the user's. Say so in step 7.
+**Worktree agents take two commands.** `worktree create` always opens its own
+workspace (its `--workspace` flag names the source repo, not a destination),
+so create the checkout, then move its root pane into the room:
 
 ```bash
 herdr worktree create --cwd "<repo>" --branch "<branch>" --label "<project>" --no-focus
+herdr pane move "<root_pane>" --tab "<tab_id>" --split <right|down> --target-pane "<pane_n>" --no-focus
 ```
 
-Parse `.result.root_pane.pane_id` and note `.result.worktree.path`; put
-absolute paths in that agent's task, since its checkout is not the repo the
-user is looking at. A worktree workspace closes with its last pane and
-`herdr worktree remove` takes only `--workspace ID`, so remove the worktree
-before its pane closes (`field-audit` does this in order); afterwards only
-`git worktree remove` clears the checkout.
+Parse `.result.root_pane.pane_id` and `.result.worktree.path` from the create.
+Pick the split and target from the table above, as for any other agent. Above
+`layout_threshold`, give it its own tab instead:
+`herdr pane move "<root_pane>" --new-tab --workspace "$WS" --label "<project>" --no-focus`.
+
+The move gives the pane a NEW id: read `.result.move_result.pane.pane_id` and
+use that one from here on. The temporary workspace closes itself. Put absolute
+paths in that agent's task, since its checkout is not the repo the user is
+looking at. A moved checkout has no workspace, so `herdr worktree remove`
+cannot clear it; `field-audit` uses `git worktree remove <path>` for these.
 
 ### Step 5: launch and register every field agent
 
@@ -389,15 +395,15 @@ most 3 times. If it never submits, tell the user rather than assuming it ran.
 ### Step 7: announce, then work the room
 
 State in one line which field agents are up, their models, the TAB that holds
-them, which agents hold their own worktree (those sit in their own workspace,
-not the user's), and that the watch loop is armed.
+them, which agents work in a worktree (branch and checkout path), and that the
+watch loop is armed.
 
 Then tell the user that this session now works the room, so their own
 conversation here will share turns with the agents' reports. Offer `/loop` if
 they want it to run hands-off.
 
 Example: "Room up in tab 'field agents' beside this one: 3 Sonnet field agents
-(a, b, c); c holds its own worktree, so it sits in its own workspace. Watch
+(a, b, c); c works in a worktree on feat/c under ~/.herdr/worktrees. Watch
 loop armed. I will work the room from here, so this thread will fill with
 their reports; switch to that tab to watch them, or leave it to me."
 
@@ -465,11 +471,10 @@ through the audit, not on your own judgment.
 3. Close the field-agent tab with `herdr tab close <tab_id>`, or single panes
    with `herdr pane close`. The room lives in the user's own workspace, which
    stays open.
-4. Worktree agents hold their own workspaces. Run
-   `herdr worktree remove --workspace <workspace_id>` before the pane closes
-   (the workspace disappears with its last pane; afterwards only
-   `git worktree remove <path>` clears the checkout). The branch survives;
-   delete it in the source repo when it is no longer needed.
+4. A worktree agent moved into the room has no workspace of its own, so
+   `field-audit` clears its checkout with `git worktree remove <path>` after
+   the branch is merged or the user says so. The branch survives; delete it
+   in the source repo when it is no longer needed.
 
 ## Failure modes and their fix
 
