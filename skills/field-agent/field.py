@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""field — handler-side tracking for herdr field agents.
+"""field: handler-side tracking for herdr field agents.
 
 The handler dispatches work to field agents in herdr panes. This script keeps
 the record of those agents, and watches them for state changes.
@@ -282,7 +282,7 @@ def cmd_register(args):
 
 
 # --------------------------------------------------------------------------
-# watch  — the event stream the handler's Monitor consumes
+# watch: the event stream the handler's Monitor consumes
 # --------------------------------------------------------------------------
 
 def emit(kind, rec, agent, prev, extra=""):
@@ -439,7 +439,7 @@ def cmd_watch(args):
 # --------------------------------------------------------------------------
 
 def cmd_catchup(args):
-    """catchup [--all] — print every settled, unacknowledged agent.
+    """catchup [--all]: print every settled, unacknowledged agent.
 
     Without --all, a loose agent (one no ledger record claims) prints only
     when it is `blocked`, which is the same filter `watch` applies. On a busy
@@ -612,13 +612,13 @@ def closable(agent, rec, self_pane):
     if status == "working":
         return ("HOLD", "still working")
     if status == "blocked":
-        return ("HOLD", "blocked — it is waiting for an answer")
+        return ("HOLD", "blocked; it is waiting for an answer")
     if status == "unknown":
         return ("HOLD", "herdr cannot detect its status; read it by hand")
     if rec is None:
-        return ("ASK", "not in the ledger — the handler did not dispatch it")
+        return ("ASK", "not in the ledger; the handler did not dispatch it")
     if not rec.get("acknowledged"):
-        return ("HOLD", "result not read yet — read and ack before closing")
+        return ("HOLD", "result not read yet; read and ack before closing")
     if rec.get("queued_followup"):
         return ("HOLD", f"has a queued follow-up: {rec['queued_followup'][:50]}")
 
@@ -628,13 +628,13 @@ def closable(agent, rec, self_pane):
         return ("HOLD", f"uncommitted changes in {cwd}")
     if is_repo and unpushed != 0:
         n = "all" if unpushed < 0 else unpushed
-        return ("CLOSE", f"safe; note {n} unpushed commit(s) on {branch} — "
+        return ("CLOSE", f"safe; note {n} unpushed commit(s) on {branch}; "
                          f"the branch survives a pane close")
     return ("CLOSE", "acknowledged, settled, working tree clean")
 
 
 def cmd_audit(args):
-    """audit [--include-loose]  — print a close/hold verdict per agent."""
+    """audit [--include-loose]: print a close/hold verdict per agent."""
     self_pane = handler_pane()
     include_loose = "--include-loose" in args
     agents = herdr_agents()
@@ -663,7 +663,7 @@ def cmd_audit(args):
 
 
 def cmd_close(args):
-    """close <name|pane> [--force]  — close one pane, with the safety checks."""
+    """close <name|pane> [--force]: close one pane, with the safety checks."""
     if not args:
         print("usage: close <name|pane> [--force]")
         sys.exit(1)
@@ -712,7 +712,7 @@ def cmd_close(args):
         rec["closed_at"] = now()
         ledger["agents"][key] = rec
         write_json(LEDGER, ledger)
-    print(f"closed {handle} ({pane}) — {reason}")
+    print(f"closed {handle} ({pane}); {reason}")
 
 
 COMMANDS = {

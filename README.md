@@ -56,7 +56,7 @@ The ledger tool `field.py` has exactly one copy, in `skills/field-agent/`. `fiel
 
 ### `field-handler`: run a room of field agents
 
-`/field-handler` is usually not typed. It surfaces on its own when work is growing complex or splitting into independent strands, offers to open a room, and agrees the scope with you first. On agreement it opens a herdr workspace with one field agent per project. **This session becomes the handler** — it watches, steers and reports, rather than delegating to a second pane. Their reports arrive as turns here, so the room shares this conversation.
+`/field-handler` is usually not typed. It surfaces on its own when work is growing complex or splitting into independent strands, offers to open a room, and agrees the scope with you first. On agreement it opens a herdr workspace with one field agent per project. **This session becomes the handler**, it watches, steers and reports, rather than delegating to a second pane. Their reports arrive as turns here, so the room shares this conversation.
 
 You can also invoke it directly:
 
@@ -76,7 +76,7 @@ This is not required for the skill to work and does not travel with the package.
 
 ### `component-system-builder`: consistency by removing choices
 
-The premise is that an agent produces consistent, polished UI when the platform gives it fewer choices, not when the model is smarter. The skill builds six artifacts — a component kit with docs beside source, seed-variable theming, a pattern-table gate, rules skills plus a tiny always-on constraints file, context-economy plumbing, and a scaffold — and places each rule as high on an enforcement ladder as the platform allows (prose → checklists → the gate → closed type surfaces → lint/CI → physically blocked).
+The premise is that an agent produces consistent, polished UI when the platform gives it fewer choices, not when the model is smarter. The skill builds six artifacts (a component kit with docs beside source, seed-variable theming, a pattern-table gate, rules skills plus a tiny always-on constraints file, context-economy plumbing, and a scaffold) and places each rule as high on an enforcement ladder as the platform allows (prose → checklists → the gate → closed type surfaces → lint/CI → physically blocked).
 
 Two modes. Green-field starts from a platform scaffold and builds outward. Retrofit runs an audit loop over an existing project, one merge-able commit per pass: inventory, tokens, componentize, build the gate, then mechanical enforcement. Each pass writes its state into `docs/system-audit.md`, so a cold session can resume from it.
 

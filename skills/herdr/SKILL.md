@@ -3,7 +3,7 @@ name: herdr
 description: "Control herdr from inside it. Manage workspaces, tabs and panes. Start agents in panes, read their output, address them by name, and wait for their status. Use when HERDR_ENV=1. Verified against herdr 0.9.0."
 ---
 
-# herdr — agent skill
+# herdr: agent skill
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop. Do not control herdr
@@ -33,7 +33,7 @@ herdr is a terminal agent multiplexer. It gives you workspaces, tabs and panes.
 Each pane runs its own process: a shell, an agent, a server or a log stream.
 You control all of it from the command line.
 
-## Identifiers — read this before you use any id
+## Identifiers: read this before you use any id
 
 **Ids are opaque handles. Read them; never build them.** Formats in 0.9.0:
 
@@ -62,7 +62,7 @@ pane a new workspace-qualified id. Continue with
 |--------|----------|-----------|
 | `name` | Yes, until you rename it, or the agent exits or is replaced | Every message you send to an agent |
 | `agent_session.value` | Yes, for the life of the agent process | A ledger key that must survive a pane change |
-| `pane_id` | **No** — it changes on `pane move`, and dies with the pane | One immediate command, and nothing more |
+| `pane_id` | **No**: it changes on `pane move`, and dies with the pane | One immediate command, and nothing more |
 
 **Rule: address an agent by its name.** Every `herdr agent` subcommand accepts
 a name in the `<TARGET>` position:
