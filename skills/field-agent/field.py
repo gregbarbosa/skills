@@ -123,10 +123,22 @@ def read_json(path, default):
 
 def write_json(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w") as fh:
-        json.dump(data, fh, indent=2)
-    os.replace(tmp, path)
+    # The temp name carries the pid. The ledger and the watch state are GLOBAL
+    # to the machine, so several handlers write them at the same time. A shared
+    # temp name lets one process os.replace() the file that another process is
+    # about to replace, and the loser dies with FileNotFoundError. That killed a
+    # watch loop on 2026-09-10 with five watchers running.
+    tmp = "%s.%d.tmp" % (path, os.getpid())
+    try:
+        with open(tmp, "w") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def herdr_agents():
