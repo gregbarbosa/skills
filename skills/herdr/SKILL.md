@@ -1,17 +1,15 @@
 ---
 name: herdr
-description: "Control herdr from inside it. Manage workspaces, tabs and panes. Start agents in panes, read their output, address them by name, and wait for their status. Use when HERDR_ENV=1. Verified against herdr 0.9.0."
+description: "Control herdr from inside it: workspaces, tabs and panes; start agents, read their output, address them by name, wait for their status. Use when HERDR_ENV=1."
 ---
 
 # herdr: agent skill
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
-user that you do not run inside a herdr pane. Then stop. Do not control herdr
-panes from outside herdr.
+user that you do not run inside a herdr pane. Then stop.
 
-Verified against **herdr 0.9.0** (2026-09-08). Run `herdr --version`. If your
-version is lower, the behaviour below can differ. Tell the user to run
-`herdr update`.
+Written for **herdr 0.9.0**. Run `herdr --version`; on a lower version tell the
+user to run `herdr update`.
 
 The client and the server update separately. After an update, check that both
 moved before you rely on a new feature:
@@ -24,10 +22,10 @@ Read `client.version`, `server.version` and `update.restart_needed`. A method
 the server does not have is not permission to stop or restart the server.
 
 The installed binary is the authority for syntax. Print a command group by
-running it without a subcommand: `herdr agent`, `herdr pane`, `herdr workspace`,
+running it without a subcommand (`herdr agent`, `herdr pane`, `herdr workspace`,
 `herdr tab`, `herdr worktree`, `herdr terminal`, `herdr notification`,
-`herdr integration`, `herdr session`, `herdr machine`. Do not run bare `herdr`;
-it launches or attaches the TUI.
+`herdr integration`, `herdr session`, `herdr machine`); bare `herdr` launches
+the TUI.
 
 herdr is a terminal agent multiplexer. It gives you workspaces, tabs and panes.
 Each pane runs its own process: a shell, an agent, a server or a log stream.
@@ -35,7 +33,7 @@ You control all of it from the command line.
 
 ## Identifiers: read this before you use any id
 
-**Ids are opaque handles. Read them; never build them.** Formats in 0.9.0:
+**Ids are opaque handles: read every id from a live command.** Formats:
 
 | Object | Format | Example |
 |--------|--------|---------|
@@ -43,14 +41,9 @@ You control all of it from the command line.
 | Tab | `w<N>:t<M>` | `w15:t5`, `w1B:tB` |
 | Pane | `w<N>:p<M>` | `w15:p9`, `w15:pG` |
 
-> Older documents show ids as `1`, `1:1` and `1-1`. Those formats are wrong.
-> Do not construct an id by hand. Read every id from a live command.
-
-**herdr 0.9.0 does not reuse a closed tab or pane id.** Measured: four
-split-then-close cycles in one workspace returned `p2`, `p3`, `p4`, `p5`. A
-stale pane id therefore resolves to nothing rather than to the wrong agent.
-herdr 0.8.x did recycle ids, so a ledger written by an older version can still
-hold an id that a live pane now uses.
+**A closed tab or pane id is not reused**, so a stale pane id resolves to
+nothing rather than to the wrong agent. (herdr 0.8.x recycled ids; a ledger it
+wrote can still hold an id a live pane now uses.)
 
 **A pane id still changes.** `herdr pane move` into another workspace gives the
 pane a new workspace-qualified id. Continue with
@@ -100,9 +93,9 @@ herdr detects agent status. The field is `agent_status`:
 | `blocked` | herdr recognized an approval or question dialog. |
 | `unknown` | herdr cannot classify the pane. It does NOT prove completion. |
 
-`idle`, `done` and `blocked` all mean the agent stopped work. Treat all three as
-"this agent needs attention". Do not wait only for `done`. Harnesses differ:
-pi ends at `done`; opencode has been seen at `working` after it finished.
+`idle`, `done` and `blocked` all mean the agent stopped work; treat all three as
+"this agent needs attention". Harnesses differ: pi ends at `done`; opencode has
+been seen at `working` after it finished.
 
 `idle` and `done` differ only by the server's seen flag. An explicit focus
 command (`agent focus`, `agent prompt`) marks the target seen and flips `done`
@@ -145,10 +138,9 @@ for `idle` before you prompt.
 agents. On a name conflict, add a numeric suffix and retry once. A name follows
 the pane's current occupant, and clears when that agent exits or is replaced.
 
-A harness flag is not guaranteed to take. Measured 2026-09-08:
-`--permission-mode auto` engages on Sonnet 5 and on the glm wrapper, and is
-SILENTLY IGNORED on Haiku 4.5. Read the pane's status line after `agent start`
-to confirm: `⏵⏵ auto mode on` versus `⏸ manual mode on`.
+A harness flag can fail to take (Haiku 4.5 ignores `--permission-mode auto`).
+Read the status line after `agent start`: `⏵⏵ auto mode on` versus
+`⏸ manual mode on`.
 
 Valid kinds: `pi`, `claude`, `codex`, `gemini`, `cursor`, `devin`, `agy`,
 `cline`, `omp`, `mastracode`, `opencode`, `copilot`, `kimi`, `kiro`, `droid`,
@@ -172,27 +164,19 @@ Behaviour to plan for:
 - `--wait` does not track turns. If the agent already works, `--wait` can match
   the end of the turn that already runs.
 
-**Which wait to use, measured on 0.9.0:**
+**Which wait to use:**
 
-| Form | Returns when | Measured |
-|------|--------------|----------|
-| `--wait --until working` | The agent is working. Returns at once if it already was. | ~0.5 s, exit 0, both cases |
-| `--wait` (no `--until`) | The agent settles: `idle`, `done` or `blocked`. | Blocked 3.1 s until `done` |
+| Form | Returns when |
+|------|--------------|
+| `--wait --until working` | The agent is working; at once if it already was. |
+| `--wait` (no `--until`) | The agent settles: `idle`, `done` or `blocked`. |
 
-Use `--until working` to dispatch and move on. Use plain `--wait` when you
-intend to block until the turn finishes.
-
-> On herdr 0.8.x, `--wait --until working` timed out when the agent was
-> ALREADY working, which invited a duplicate resend. 0.9.0 returns exit 0
-> instead. Delete any workaround built for the old behaviour.
-
-A prompt sent to a busy claude-kind agent QUEUES. It does not inject into the
-running turn.
+`--until working` dispatches and moves on; plain `--wait` blocks until the turn
+finishes. A prompt sent to a busy claude-kind agent queues for its next turn.
 
 On `agent_prompt_stalled`, read the pane. If the text sits in the input box and
-matches what you just sent, send `herdr agent send-keys <TARGET> Enter`. Retry
-a maximum of 3 times. If the prompt never submits, tell the user. Do not assume
-that it ran.
+matches what you just sent, send `herdr agent send-keys <TARGET> Enter`, at
+most 3 times. If it never submits, tell the user rather than assuming it ran.
 
 ### agent wait
 
@@ -203,10 +187,9 @@ herdr agent wait api-review --until done --timeout 120000
 Without `--until`, it matches `idle`, `done` or `blocked`. Without `--timeout`,
 it waits forever.
 
-> **`agent wait` blocks your own turn.** It is correct for a short, known wait.
-> It is wrong for supervision of a long task, because you can do nothing else
-> until it returns. To supervise several agents, use the `field-agent` skill's
-> watch loop.
+> **`agent wait` blocks your own turn**, so it fits a short, known wait. To
+> supervise a long task or several agents, use the `field-agent` skill's watch
+> loop.
 
 ## Panes
 
@@ -227,11 +210,9 @@ herdr pane wait-output w15:p3 --regex "server.*ready" --timeout 30000
 `recent-unwrapped` when a soft wrap breaks a match. `pane read` prints text.
 `pane read --format ansi` prints an ANSI snapshot.
 
-> `--match` and `--regex` are alternatives. `--regex` takes the pattern as its
-> value. Do not pass `--regex` as a flag beside `--match`.
->
-> The top-level `herdr wait output` and `herdr wait agent-status` commands were
-> **removed**. Use `herdr pane wait-output` and `herdr agent wait`.
+> `--match` and `--regex` are alternatives; `--regex` takes the pattern as its
+> value. `herdr wait output` and `herdr wait agent-status` no longer exist; use
+> `pane wait-output` and `agent wait`.
 
 ## Tabs and workspaces
 
@@ -246,9 +227,8 @@ herdr tab focus w15:t2
 herdr tab close w15:t2
 ```
 
-`--no-focus` keeps your own pane focused. Parse new ids from the response:
-
-Each is an OBJECT, not a bare id. Take the id from inside it:
+`--no-focus` keeps your own pane focused. Each returned object carries its id
+inside it:
 
 - `workspace create` returns `.result.workspace`, `.result.tab`,
   `.result.root_pane`. The ids are `.result.workspace.workspace_id`,
@@ -314,10 +294,9 @@ herdr agent read api-review --source recent --lines 80
 ## Related
 
 To dispatch work to one new agent and supervise it, use the **`field-agent`**
-skill. To run several on one theme, use **`field-handler`**. To read the
-results and close finished panes, use **`field-audit`**. They add the naming
-contract, the field ledger and the watch loop. Do not build a supervision loop
-by hand from `agent wait`.
+skill; several on one theme, **`field-handler`**; reading results and closing
+finished panes, **`field-audit`**. They add the naming contract, the field
+ledger and the watch loop.
 
 ## Notes
 

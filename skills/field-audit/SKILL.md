@@ -1,6 +1,6 @@
 ---
 name: field-audit
-description: Use when the user asks to audit, sweep, review, tidy or clean up the agents and panes you dispatched, or to close panes whose work is done. Reads each field agent's result, verifies it, reports a verdict, then closes only the panes that are provably finished and safe. Requires herdr >= 0.9.0 and HERDR_ENV=1.
+description: Read each dispatched field agent's result, verify it, report a verdict, then close only the panes that are provably finished. Use when the user asks to audit, sweep, tidy or close the agents and panes you dispatched. Requires herdr 0.9.0 or later inside a herdr pane.
 ---
 
 # field-audit: read the results, then close what is finished
@@ -8,51 +8,36 @@ description: Use when the user asks to audit, sweep, review, tidy or clean up th
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
 
-This skill closes panes. A closed pane destroys unread output. Follow the order
-below. Read first, close last.
-
 Run `herdr --version`. This skill needs **0.9.0 or later**. On an earlier
-version, tell the user to run `herdr update`. Then stop. Verified against herdr
-0.9.0 (2026-09-08).
+version, tell the user to run `herdr update`. Then stop.
 
-Related skills: **`field-agent`** dispatches one field agent.
-**`field-handler`** runs a room of them. **`herdr`** documents the command
-surface.
+A closed pane destroys unread output, so this skill reads first and closes
+last. **`field-agent`** dispatches one field agent, **`field-handler`** runs a
+room, **`herdr`** documents the command surface; the four are one suite.
 
-**These four skills are one suite.** `field-agent`, `field-handler`,
-`field-audit` and `herdr` install together and depend on each other. Installing
-one alone leaves it without its tools.
-
-The ledger tool `field.py` lives in the **`field-agent`** skill's directory,
-not this one. There is only one copy on purpose; a second copy goes stale.
-Find it once and call it `<agent_dir>`:
+The ledger tool `field.py` lives in the `field-agent` skill's directory (one
+copy, so it cannot go stale). Find it once and call it `<agent_dir>`:
 
 ```bash
 find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null
 ```
 
-Do not use a `*` glob in a plain `ls`; zsh aborts the whole command when one
-glob does not match. `field.py` stores its state in `~/.claude/field/`.
+Use `find`, not an `ls` glob (zsh aborts the whole command on one unmatched
+glob). Both roots matter: single-agent installs use `~/.claude/skills`,
+multi-agent installs and Codex, Copilot, Gemini and pi use `~/.agents/skills`.
+`field.py` keeps its state in `~/.claude/field/`.
 
-The search covers BOTH roots on purpose. A single-agent install puts skills in
-`~/.claude/skills`; a multi-agent install puts them in `~/.agents/skills`, and
-Codex, Copilot, Gemini and pi read the second one. Searching only `~/.claude`
-makes this skill fail on a perfectly normal multi-agent install.
-
-If that `find` returns nothing, the suite is not fully installed. Do not
-improvise a replacement and do not write your own ledger. Tell the user to run:
+If the `find` returns nothing, the suite is not fully installed; tell the user
+to run the command below, then stop.
 
 ```bash
 npx skills add gregbarbosa/skills -s '*' -g -y
 ```
 
-Then stop.
-
 ## The rule
 
-**Never close a pane whose result you have not read.** The point of a field
-agent is its output. A close before a read throws away the work and leaves no
-trace.
+**Read a pane's result before you close it.** The output is the point of a
+field agent; a close before a read throws the work away and leaves no trace.
 
 ## Step 1: Take the inventory
 
@@ -79,7 +64,7 @@ For each agent that is `idle`, `done` or `blocked`:
 herdr agent read "<name>" --source recent --lines 80
 ```
 
-Then judge the work. Do not trust a summary line.
+Then judge the work against the files, not the summary line:
 
 - Check that the files it names exist and hold the change.
 - Run the build or the tests when the task touched code.
@@ -92,7 +77,7 @@ agent eligible to close:
 python3 <agent_dir>/field.py ack "<name>" "verified: 3 files changed, tests pass"
 ```
 
-If the work is incomplete, do not acknowledge it. Prompt the agent to finish:
+Incomplete work stays unacknowledged; prompt the agent to finish:
 
 ```bash
 herdr agent prompt "<name>" "<what is missing>"
@@ -106,13 +91,12 @@ the answer unambiguous. Escalate to the user when the decision is theirs.
 An `ASK` agent is not in your ledger. You did not dispatch it, or you
 dispatched it in an earlier session that is now gone.
 
-**Do not close an `ASK` agent on your own judgment.** It can be the user's own
-interactive session. A pane sitting at the user's home directory, with a
-title that names the user rather than a task, is almost certainly them
-working, not a finished field agent.
+**An `ASK` agent closes only on the user's word.** It can be their own
+interactive session: a pane at the home directory, titled for the user rather
+than a task, is almost certainly them working.
 
-For each `ASK` agent, read it, then tell the user what it holds and ask whether
-to close it. Group them in one question. Do not ask once per agent.
+Read each `ASK` agent, then tell the user what it holds and ask whether to
+close it, all of them in one question.
 
 If the user confirms that an untracked agent was a real field agent, adopt it
 into the ledger first, so the close is recorded:
@@ -132,10 +116,9 @@ herdr agent rename "<pane_id>" "<name>"
 
 Do this before step 5, for any agent that holds a worktree.
 
-**Order matters, and getting it wrong is not recoverable through herdr.** A
-worktree workspace closes itself when its last pane closes. `worktree remove`
-takes only `--workspace ID`, so once that workspace is gone the command fails
-with `workspace_not_found` and herdr offers no other route. Measured on 0.9.0.
+**Order matters.** A worktree workspace closes with its last pane, and
+`worktree remove` takes only `--workspace ID`, so once the workspace is gone the
+command fails with `workspace_not_found` and only git can clear the checkout.
 
 ```bash
 herdr worktree list --cwd "<the source repo>"
@@ -171,10 +154,9 @@ The command re-checks the safety rules and refuses when any of these is true:
 - The working directory holds uncommitted changes.
 - The pane is the handler's own.
 
-A refusal names its cause. Fix the cause. Do not reach for `--force`.
-
-> `--force` closes the pane and accepts the loss. Use it only when the user
-> asks for that specific pane, after you tell them what it destroys.
+A refusal names its cause; fix the cause. `--force` closes the pane and
+accepts the loss: for when the user asks for that specific pane, after you tell
+them what it destroys.
 
 Unpushed commits do **not** block a close. The command reports them, and the
 branch survives in the repository.
