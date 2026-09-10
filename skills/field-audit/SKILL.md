@@ -1,9 +1,9 @@
 ---
 name: field-audit
-description: Use when the user asks to audit, sweep, review, tidy or clean up the agents and panes you dispatched — or to close panes whose work is done. Reads each field agent's result, verifies it, reports a verdict, then closes only the panes that are provably finished and safe. Requires herdr >= 0.9.0 and HERDR_ENV=1.
+description: Use when the user asks to audit, sweep, review, tidy or clean up the agents and panes you dispatched, or to close panes whose work is done. Reads each field agent's result, verifies it, reports a verdict, then closes only the panes that are provably finished and safe. Requires herdr >= 0.9.0 and HERDR_ENV=1.
 ---
 
-# field-audit — read the results, then close what is finished
+# field-audit: read the results, then close what is finished
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
@@ -54,7 +54,7 @@ Then stop.
 agent is its output. A close before a read throws away the work and leaves no
 trace.
 
-## Step 1 — Take the inventory
+## Step 1: Take the inventory
 
 ```bash
 SELF=$(herdr pane current --current | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])')
@@ -71,7 +71,7 @@ Each agent gets a verdict:
 
 Drop `--include-loose` to see only the agents you dispatched.
 
-## Step 2 — Read every settled agent you dispatched
+## Step 2: Read every settled agent you dispatched
 
 For each agent that is `idle`, `done` or `blocked`:
 
@@ -101,7 +101,7 @@ herdr agent prompt "<name>" "<what is missing>"
 If the agent is `blocked`, read its question. Answer it when the brief makes
 the answer unambiguous. Escalate to the user when the decision is theirs.
 
-## Step 3 — Handle the `ASK` agents
+## Step 3: Handle the `ASK` agents
 
 An `ASK` agent is not in your ledger. You did not dispatch it, or you
 dispatched it in an earlier session that is now gone.
@@ -128,7 +128,7 @@ Name an unnamed agent before you adopt it:
 herdr agent rename "<pane_id>" "<name>"
 ```
 
-## Step 4 — Remove worktrees BEFORE you close their panes
+## Step 4: Remove worktrees BEFORE you close their panes
 
 Do this before step 5, for any agent that holds a worktree.
 
@@ -157,7 +157,7 @@ git -C "<the source repo>" worktree remove "<path>"
 
 The branch survives in the source repository. The checkout does not.
 
-## Step 5 — Close the finished panes
+## Step 5: Close the finished panes
 
 ```bash
 FIELD_HANDLER_PANE=$SELF python3 <agent_dir>/field.py close "<name>"
@@ -179,7 +179,7 @@ A refusal names its cause. Fix the cause. Do not reach for `--force`.
 Unpushed commits do **not** block a close. The command reports them, and the
 branch survives in the repository.
 
-## Step 6 — Report
+## Step 6: Report
 
 Give the user one table:
 
