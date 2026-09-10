@@ -1,6 +1,6 @@
 ---
 name: field-handler
-description: Use when project work is growing complex or splitting into independent strands that could progress in parallel across separate sessions, such as several related projects moving toward one goal, or a single effort branching into pieces that don't depend on each other. This skill SURFACES the option and ALWAYS agrees the scope with the user before it spawns anything. Requires herdr >= 0.9.0 and HERDR_ENV=1.
+description: Run a room of parallel field agents on one theme and steer them from this session. Use when work splits into independent strands that could progress in parallel, such as several projects moving toward one goal. Surfaces the option and agrees scope with the user before spawning anything. Requires herdr 0.9.0 or later inside a herdr pane.
 ---
 
 # field-handler: run a room of field agents
@@ -11,30 +11,23 @@ user that you do not run inside a herdr pane. Then stop.
 Run `herdr --version`. This skill needs **0.9.0 or later**. On an earlier
 version, tell the user to run `herdr update`. Then stop.
 
-Read the **`herdr`** skill for the command surface. Read the **`field-agent`**
-skill for the dispatch contract. This skill is the multi-agent form of
-`field-agent`. It uses the same ledger, the same watch loop, and the same three
-rules.
+Read the **`herdr`** skill for the command surface and the **`field-agent`**
+skill for the dispatch contract; this is its multi-agent form, on the same
+ledger, watch loop and three rules.
 
 Two directories matter below:
 
-- `<skill_dir>`: this skill's own directory, from the `Base directory for
-  this skill:` path at the top. It holds `handler.json`.
-- `<agent_dir>`: the `field-agent` skill's directory. It holds `field.py` and
+- `<skill_dir>`: this skill's own directory (the `Base directory for this
+  skill:` path above). It holds `handler.json`.
+- `<agent_dir>`: the `field-agent` skill's directory, holding `field.py` and
   `harnesses.json`. Find it with
-  `find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null`.
-  Do not use a `*` glob in a plain `ls`; zsh aborts the whole command when one
-  glob does not match, and you lose the valid path too.
+  `find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null`
+  (use `find`, not an `ls` glob: zsh aborts the whole command on one unmatched
+  glob). Both roots matter: single-agent installs use `~/.claude/skills`,
+  multi-agent installs and Codex, Copilot, Gemini and pi use `~/.agents/skills`.
 
-The search covers BOTH roots on purpose. A single-agent install puts skills in
-`~/.claude/skills`; a multi-agent install puts them in `~/.agents/skills`, and
-Codex, Copilot, Gemini and pi read the second one. Searching only `~/.claude`
-makes this skill fail on a perfectly normal multi-agent install.
-
-**These four skills are one suite.** `field-agent`, `field-handler`,
-`field-audit` and `herdr` install together and depend on each other. If the
-`find` above returns nothing, the suite is not fully installed. Do not
-improvise a replacement and do not write your own ledger. Tell the user to run
+`field-agent`, `field-handler`, `field-audit` and `herdr` are one suite. If the
+`find` returns nothing, the suite is not fully installed; tell the user to run
 the command below, then stop.
 
 ```bash
@@ -44,8 +37,7 @@ npx skills add gregbarbosa/skills -s '*' -g -y
 ## You are the handler
 
 **This session is the handler.** Each agent you start is a **field agent**. You
-do not delegate the watching to another pane. You open the room, you steer it,
-and you report to the user.
+open the room, steer it, and report to the user; the watching stays here.
 
 A handler does five things. All five are required.
 
@@ -55,10 +47,8 @@ A handler does five things. All five are required.
 4. **Watch** the room, so a finished agent reaches you without your attention.
 5. **Triage** each report: read the work, verify it, then act or escalate.
 
-**One consequence to expect.** A field agent reports by prompting you. Those
-callbacks arrive as turns in this session, mixed in with the user's own
-messages. Once the room is up, this session works the room. Tell the user that
-in step 7.
+A field agent reports by prompting you, so its callbacks arrive as turns in
+this session beside the user's own messages. Tell the user that in step 7.
 
 ## The three rules
 
@@ -70,15 +60,13 @@ in step 7.
 3. **The callback is best effort. The watch loop is the guarantee.** A field
    agent that crashes sends no callback.
 
-## Two phases: never skip Phase A
-
-You MUST NOT begin Phase B until the user has explicitly agreed to a scope.
+## Two phases
 
 - **Phase A, offer and agree.** Name the independent strands, propose a scope,
   and discuss. Spawn nothing.
-- **Phase B, open the room.** Only after an explicit go.
+- **Phase B, open the room.** Starts only on the user's explicit go.
 
-If this skill surfaced on its own, you are in Phase A. An offer is not a spawn.
+If this skill surfaced on its own, you are in Phase A.
 
 ## Phase A: offer and agree
 
@@ -110,15 +98,10 @@ herdr agent list | python3 -c 'import sys,json;print([a.get("name") for a in jso
 herdr agent rename "<self_pane>" m
 ```
 
-Call the pane id `<self_pane>` and the name `m`. Read the pane id live. Do not
-trust `$HERDR_PANE_ID`; it goes stale after a pane move.
-
-An agent record has NO `name` key until something names it, so always read the
-name with `.get("name")`. A plain `a["name"]` raises `KeyError` on the first
-unnamed pane, and most panes are unnamed.
-
-If a live agent already holds `m`, use `m-<short-theme>` and use that name
-everywhere below.
+Call the pane id `<self_pane>` and the name `m`; if a live agent already holds
+`m`, use `m-<short-theme>` everywhere below. Read the pane id live
+(`$HERDR_PANE_ID` goes stale after a pane move), and read names with
+`.get("name")`: an unnamed agent record has no `name` key.
 
 **Arm the watch loop now, before you spawn anything.** Use the `Monitor` tool:
 
@@ -130,9 +113,8 @@ Monitor(
 )
 ```
 
-Only ONE watch loop may run on this machine. Two watchers share one state file
-and print every event twice. If you already armed one in this session through
-`field-agent`, keep it and arm nothing here.
+One watch loop per machine: two share one state file and print every event
+twice. If `field-agent` already armed one in this session, keep it.
 
 Then run `python3 <agent_dir>/field.py catchup` once, to surface an agent that
 settled before you armed the loop.
@@ -155,22 +137,20 @@ or is not valid JSON, use this default and tell the user:
 { "agent": {"command":"claude","model_flag":"--model sonnet"}, "model_floor": "sonnet", "layout_threshold": 4 }
 ```
 
-`layout_threshold` is the number of field agents that still share ONE tab.
-At or below it, each agent gets a pane in that tab and the user sees the whole
-room at a glance. Above it, each agent gets its own tab, because a wider grid
-makes every pane unreadable.
+`layout_threshold` is how many field agents still share one tab: at or below
+it the user sees the whole room at a glance, above it a grid makes every pane
+unreadable, so each agent gets its own tab.
 
-**`model_floor` is Sonnet, and it is not a preference.** Measured 2026-09-08:
-`--permission-mode auto` is SILENTLY IGNORED on Haiku 4.5. A field agent on
-Haiku stops at its first tool call, and you see `blocked` with no obvious
-cause. Never drop a field agent below the floor, even for a task that looks
-trivial. If the user asks for Haiku, tell them this and let them decide.
+**`model_floor` is Sonnet.** Haiku 4.5 ignores `--permission-mode auto`, so a
+Haiku field agent stops at its first tool call and shows `blocked` with no
+visible cause. If the user asks for Haiku, say this and let them decide.
 
 For a per-agent harness override that the user named, resolve `command`, `kind`
 and `auto_flag` from `harnesses.json` in `<agent_dir>`. An entry whose
 `command` equals its `kind` is **canonical**. An entry whose `command` differs
-(glm, ds) is a **wrapper** and takes the fallback path in step 5. Read `brief_format` from the same entry (`blocks` or
-`line`, missing means `blocks`); step 6 renders the brief in that form.
+(glm, ds) is a **wrapper** and takes the fallback path in step 5. Read
+`brief_format` from the same entry (`blocks` or `line`; missing means `blocks`)
+for step 6.
 
 ### Step 3: decide isolation per field agent
 
@@ -180,20 +160,16 @@ A field agent needs a git worktree when BOTH of these are true:
    checkout has now.
 2. It will commit, or change branch.
 
-A shared-checkout agent that runs `git checkout -b` switches every other
-session in that directory, including this one. Two read-only agents in one
-repo need no worktree; keep them in the room workspace, and say in each task
-that the agent must not commit or change branch.
+A shared-checkout agent that runs `git checkout -b` switches every session in
+that directory, including this one. Two read-only agents in one repo need no
+worktree; say in each task that the agent leaves git alone.
 
 ### Step 4: create the room, in the CURRENT workspace
 
-**Never create a workspace for the room.** The room belongs in the workspace
-the user is already in. You stay in your tab; the field agents get their own
-tab beside it. That way the user switches ONE tab to see the whole room, and
-switches back to talk to you. herdr's own guidance says the same: do not
-create a workspace, tab or worktree beyond what the user asked for.
-
-Read your workspace live. Do not trust `$HERDR_WORKSPACE_ID`:
+The room lives in the workspace the user is already in: you stay in your tab,
+the field agents get one tab beside it, and the user switches one tab to see
+the room and back to talk to you. Read your workspace live
+(`$HERDR_WORKSPACE_ID` goes stale):
 
 ```bash
 WS=$(herdr pane current --current | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["workspace_id"])')
@@ -217,8 +193,7 @@ DOWN, so the grid stays readable:
 | 4 | `herdr pane split "<pane_2>" --direction down --cwd "<abs_path_4>" --no-focus` |
 
 Parse `.result.pane.pane_id` from each. Four agents give a 2x2 grid; three
-give a split left column beside a full-height right column. Verified on
-herdr 0.9.0.
+give a split left column beside a full-height right column.
 
 **N > `layout_threshold`: one tab per agent, still in `$WS`.** Above four,
 a grid gives each agent an unusably narrow column, so trade the single glance
@@ -231,33 +206,22 @@ herdr tab create --workspace "$WS" --label "<project>" --cwd "<abs_path>" --no-f
 Parse `.result.root_pane.pane_id`.
 
 **Worktree agents are the one exception.** `worktree create` always makes its
-own workspace; herdr gives no way to put a worktree in an existing one. Those
-agents therefore live outside the user's workspace. Say so in step 7.
+own workspace, so those agents live outside the user's. Say so in step 7.
 
 ```bash
 herdr worktree create --cwd "<repo>" --branch "<branch>" --label "<project>" --no-focus
 ```
 
-Parse `.result.root_pane.pane_id` and note `.result.worktree.path`. Put
-absolute paths in that agent's task, because its checkout is not the repo the
-user is looking at.
-
-CAUTION: a worktree workspace closes itself when its last pane closes, and
-`herdr worktree remove` accepts only `--workspace ID`. Remove the worktree
-BEFORE its pane closes, or the checkout is orphaned and only
-`git worktree remove` can clear it. `field-audit` does this in the right
-order.
-
-Do NOT pass `--env HERDR_AGENT=<kind>`. Older versions of this skill did.
-herdr 0.9.0 does not read that variable: the only matching string in the
-binary is `HERDR_AGENT_DETECTION_MANIFEST_CATALOG_URL`, a different setting.
-herdr detects a wrapper harness by sniffing the TUI it draws, so the flag was
-always a no-op.
+Parse `.result.root_pane.pane_id` and note `.result.worktree.path`; put
+absolute paths in that agent's task, since its checkout is not the repo the
+user is looking at. A worktree workspace closes with its last pane and
+`herdr worktree remove` takes only `--workspace ID`, so remove the worktree
+before its pane closes (`field-audit` does this in order); afterwards only
+`git worktree remove` clears the checkout.
 
 ### Step 5: launch and register every field agent
 
-Launch and register EVERY field agent before you prompt any of them. Do not
-prompt yet.
+Launch and register every field agent before you prompt any of them.
 
 **Canonical harness:**
 
@@ -265,20 +229,19 @@ prompt yet.
 herdr agent start "<agent_name>" --kind <kind> --pane "<pane_id>" -- <model_flag words> <auto_flag words>
 ```
 
-`agent start` needs a pane that sits at an interactive shell prompt with no
-foreground command. It never creates or moves layout; step 4 made the pane.
-Startup defaults to a 30-second timeout. If a dialog blocks the agent during
-startup, herdr returns `agent_not_ready` but keeps the name usable for
-`agent read` and `agent send-keys`. Clear the dialog, then continue.
+`agent start` needs a pane sitting at a shell prompt (step 4 made it) and
+times out after 30 seconds. A startup dialog returns `agent_not_ready` with
+the name still usable for `agent read` and `agent send-keys`: clear the
+dialog, then continue.
 
-**Wrapper harness** (glm, ds): run it, **wait for herdr to DETECT it**, then
-wait for readiness, then **name it**. Do not skip the rename; an unnamed agent
-breaks Rule 1:
+**Wrapper harness** (glm, ds): run it, wait for herdr to detect it, wait for
+readiness, then name it (Rule 1):
 
 ```bash
 herdr pane run "<pane_id>" "<command> <auto_flag>"
 
-# Poll until herdr detects an agent in the pane. Measured: about 2 seconds.
+# pane run returns before the TUI draws; without this loop, agent wait fails
+# at once with agent_not_found and the agent is left running and unnamed.
 for i in $(seq 1 60); do
   A=$(herdr pane get "<pane_id>" | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"].get("agent") or "")')
   [ -n "$A" ] && break
@@ -290,56 +253,37 @@ herdr agent wait "<pane_id>" --until idle --timeout 60000
 herdr agent rename "<pane_id>" "<agent_name>"
 ```
 
-CAUTION: do not drop the polling loop. `pane run` returns as soon as it sends
-the command, before the TUI draws. An `agent wait` issued at that moment fails
-with `agent_not_found` in about 0.04 seconds and exit 1; the `--timeout` never
-applies. The `agent rename` on the next line then fails the same way, and the
-agent is left running and unnamed. Measured on herdr 0.9.0.
+**Clear the startup dialogs before you prompt.** Read the pane
+(`herdr pane read "<pane_id>" --source visible --lines 30`), find the line
+marked `❯`, and move to the option you want with `Down` or `Up` before
+`Enter`: the marked option is the default, and on these dialogs the default is
+the wrong one. Read the pane again after each keypress; option order changes
+between Claude Code versions.
 
-**Clear the startup dialogs before you prompt.** Read the pane first:
-`herdr pane read "<pane_id>" --source visible --lines 30`.
+- **Folder trust** ("Is this a project you created or one you trust?"): the
+  default is "No, exit", which quits the agent. `Down`, then `Enter`. It does
+  not always appear.
+- **Usage credits** ("Fable 5 now uses usage credits"): the default silently
+  switches the model to Sonnet. To keep the model you asked for, `Down`, then
+  `Enter`.
+- **"New MCP servers found"**: `Esc`.
 
-CAUTION: never send a blind `Enter`. Read the dialog, find the line marked
-`❯`, and choose the option that matches your intent. The marked option is the
-DEFAULT, and on several dialogs the default is the one you do NOT want. Move
-with `Down` or `Up`, then send `Enter`.
+`Enter` also submits whatever sits in the input box; after clearing a dialog,
+read the pane and check what the agent is now working on.
 
-- **Folder-trust dialog** ("Is this a project you created or one you trust?").
-  The default is **"No, exit"**. "Yes, I trust this folder" is the SECOND
-  option. A blind `Enter` QUITS the agent. Send `Down`, then `Enter`. This
-  dialog is NOT reliable to predict: on 2026-09-08 a fresh `worktree create`
-  checkout did not raise it at all. Read the pane and react to what is there;
-  do not assume it appears, and do not assume it does not.
-- **Usage-credit dialog** ("Fable 5 now uses usage credits"). The default is
-  **"Switch to Sonnet 5 and continue"**. A blind `Enter` silently downgrades
-  the model. To keep the model you asked for, send `Down`, then `Enter`.
-- **"New MCP servers found"**: send `Esc`.
-
-Read the pane again after each keypress. Option order and defaults change
-between Claude Code versions, so verify what is marked instead of trusting the
-key sequence above.
-
-CAUTION: `Enter` also submits whatever text sits in the input box. After you
-clear a dialog, read the pane and check what the agent is now working on.
-
-**Check the permission mode after launch. Do not assume the flag took.**
-Measured on 2026-09-08: `--permission-mode auto` is silently ignored on
-**Haiku 4.5**. The same flag engages on Sonnet 5 and on the glm wrapper. The
-status line is the evidence:
+**Check the permission mode.** The status line is the evidence:
 
 ```bash
 herdr pane read "<pane_id>" --source visible --lines 3
 ```
 
-`⏵⏵ auto mode on` means the flag took. `⏸ manual mode on` means it did not,
-and the agent will stop at its first tool call. The handler then sees
-`blocked` with no obvious cause. Use Sonnet or better for a field agent, or
-expect to answer its permission prompts by hand.
+`⏵⏵ auto mode on` means the flag took; `⏸ manual mode on` means the agent will
+stop at its first tool call (the Haiku case from step 2).
 
-If the pane shows a shell error, the launch failed. Tell the user and stop.
+A shell error in the pane is a failed launch: tell the user and stop.
 
-**Register the agent now, before you prompt it.** A crash between the prompt
-and the register call leaves an untracked agent:
+**Register the agent before you prompt it**, so a crash between the two never
+leaves an untracked agent:
 
 ```bash
 python3 <agent_dir>/field.py register "<agent_name>" "<pane_id>" "<harness>" \
@@ -426,9 +370,8 @@ Replace `m` with your actual name from step 0.
 herdr agent prompt "<agent_name>" "Field agent brief from your handler.  ||  <task>. Scope and read first; flag any irreversible change before you make it.  ||  CONTEXT, read these first: <absolute paths>. Facts you can rely on: <facts>. Credentials: <where they come from, never the value>. Conventions: <rules>.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <agent_name>: COMPLETE:' and send it and the notification as ONE command: herdr agent prompt 'm' 'FIELD REPORT <agent_name>: COMPLETE: ...' && herdr notification show 'Field agent done: <agent_name>' --sound done  ||  Your COMPLETE report is your final message; do not write a second summary after it.  ||  If your report command fails, retry it twice before you continue.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
 ```
 
-**How to read the result.** On herdr 0.9.0, `--wait --until working` returns as
-soon as the agent is working, and it returns immediately when the agent is
-already working. Measured: about 0.5 seconds in both cases.
+**How to read the result.** `--wait --until working` returns as soon as the
+agent is working, at once if it already was.
 
 | Outcome | Meaning | What you do |
 |---------|---------|-------------|
@@ -437,11 +380,10 @@ already working. Measured: about 0.5 seconds in both cases.
 | `agent_blocked` | A dialog was up. herdr sent NOTHING. | Clear the dialog, then prompt again. |
 | `agent_prompt_stalled` | herdr saw no activity after it submitted. | Read the pane. |
 
-On a stall, read the pane. A prompt sent to a busy claude-kind agent QUEUES; it
-does not inject into the running turn, and it is not stuck. Text in the input
-box is stuck only when it matches what you just sent. Then send
-`herdr agent send-keys "<agent_name>" Enter`. Retry a maximum of 3 times. If it
-never submits, tell the user. Do not assume that it ran.
+On a stall, read the pane. A prompt sent to a busy claude-kind agent queues
+for its next turn and is not stuck. Input-box text is stuck only when it matches
+what you just sent; then send `herdr agent send-keys "<agent_name>" Enter`, at
+most 3 times. If it never submits, tell the user rather than assuming it ran.
 
 ### Step 7: announce, then work the room
 
@@ -462,28 +404,25 @@ their reports; switch to that tab to watch them, or leave it to me."
 
 ## Your standing duties while the room runs
 
-**Run ONE assessment pass now.** `herdr agent list` gives every agent's
-`agent_status` and live `terminal_title_stripped`. Cross-check it against the
-roster. A roster agent MISSING from `agent list` is not gone; detection can lag
-on a fresh worktree pane, so `herdr pane read` its pane directly. Only
-`herdr agent read <agent_name> --source recent-unwrapped --lines 40` the agents
-that look stuck, off-theme or missing. Report a short roll-up to the user.
+**Run one assessment pass now.** `herdr agent list` gives every agent's
+`agent_status` and live `terminal_title_stripped`; cross-check it against the
+roster. A roster agent missing from the list is not gone (detection lags on a
+fresh worktree pane): `herdr pane read` its pane directly. Read only the agents
+that look stuck, off-theme or missing, with
+`herdr agent read <agent_name> --source recent-unwrapped --lines 40`, and give
+the user a short roll-up.
 
-**Address agents by NAME, never by a cached pane id:**
-`herdr agent prompt <agent_name> "<one concrete instruction>"`.
+**Address agents by name:** `herdr agent prompt <agent_name> "<one concrete
+instruction>"`. Prompt an agent whose status is `idle`, `blocked` or `done`; a
+prompt to a `working` agent queues behind its current turn.
 
-**Only prompt an agent whose `agent_status` is `idle`, `blocked` or `done`.
-Never prompt one that is `working`** unless you intend the prompt to queue
-behind its current turn.
+**Triage only your roster.** The ledger and the watch loop are global to this
+machine, so `catchup` and `[FIELD]` events will name agents from the user's
+other sessions; for those, tell the user in one line and leave the pane alone.
+A prompt to a stranger's idle agent injects work into a session you know
+nothing about.
 
-**Triage ONLY your roster.** The ledger and the watch loop are GLOBAL to this
-machine, not scoped to this room. `catchup` and `[FIELD]` events will name
-agents from the user's other sessions. For any agent that is not on your
-roster, tell the user in one line and take NO other action. Never read, prompt
-or close a pane outside this room's workspace. Prompting a stranger's `idle`
-agent injects work into a session you know nothing about.
-
-**Triage every event. Do not just acknowledge it.**
+**Triage every event before you acknowledge it.**
 
 | Event | What you do |
 |-------|-------------|
@@ -500,39 +439,36 @@ python3 <agent_dir>/field.py ack "<agent_name>" "<verdict; files; test result>"
 herdr notification show "Field agent done: <agent_name>" --sound done
 ```
 
-**The ledger is the memory, not your context.** Write the task, the branch and
-the verdict into it. Your context will be summarised; the file will not. After
-a compaction, run `python3 <agent_dir>/field.py status` before you ask the user
-anything.
+**The ledger is the memory.** Write the task, the branch and the verdict into
+it; your context will be summarised, the file will not. After a compaction, run
+`python3 <agent_dir>/field.py status` before you ask the user anything.
 
-**When you read an agent's pane, text in its input box is usually Claude
-Code's auto-generated prompt SUGGESTION.** It is not a stuck submission and not
-a user draft. Never resend or press Enter because of suggestion text.
+**Text in an agent's input box is usually Claude Code's prompt suggestion**, not
+a stuck submission or a user draft. Leave it.
 
-**Do not poll and do not loop.** After the first pass, wait. Act when an agent
-reports, when a `[FIELD]` event lands, or when the user asks. Do not use
-`herdr agent wait` to supervise; it blocks your turn.
+**After the first pass, wait.** Act when an agent reports, when a `[FIELD]`
+event lands, or when the user asks. `herdr agent wait` blocks your turn; it is
+for a short, known wait during a launch.
 
 ---
 
 ## Teardown
 
-Do not close the room on your own judgment. An unread pane holds work that
-nothing else records.
+An unread pane holds work that nothing else records, so the room closes
+through the audit, not on your own judgment.
 
 1. Run the **`field-audit`** skill. It reads each result, verifies it, reports
    a verdict, and closes only the panes that are provably finished.
 2. Confirm with the user before you close a pane whose agent is still
    `working`.
 3. Close the field-agent tab with `herdr tab close <tab_id>`, or single panes
-   with `herdr pane close`. The room lives in the user's own workspace now, so
-   there is no room workspace to close. NEVER close the user's workspace.
-4. Worktree agents hold their own workspaces. Remove the worktree BEFORE its
-   pane closes: `herdr worktree remove --workspace <workspace_id>` takes only a
-   workspace id, and that workspace disappears with its last pane. After that
-   only `git worktree remove <path>` can clear the checkout. The branch
-   survives either way; delete it in the source repo when it is no longer
-   needed.
+   with `herdr pane close`. The room lives in the user's own workspace, which
+   stays open.
+4. Worktree agents hold their own workspaces. Run
+   `herdr worktree remove --workspace <workspace_id>` before the pane closes
+   (the workspace disappears with its last pane; afterwards only
+   `git worktree remove <path>` clears the checkout). The branch survives;
+   delete it in the source repo when it is no longer needed.
 
 ## Failure modes and their fix
 
