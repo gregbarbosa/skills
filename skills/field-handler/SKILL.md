@@ -169,7 +169,8 @@ trivial. If the user asks for Haiku, tell them this and let them decide.
 For a per-agent harness override that the user named, resolve `command`, `kind`
 and `auto_flag` from `harnesses.json` in `<agent_dir>`. An entry whose
 `command` equals its `kind` is **canonical**. An entry whose `command` differs
-(glm, ds) is a **wrapper** and takes the fallback path in step 5.
+(glm, ds) is a **wrapper** and takes the fallback path in step 5. Read `brief_format` from the same entry (`blocks` or
+`line`, missing means `blocks`); step 6 renders the brief in that form.
 
 ### Step 3: decide isolation per field agent
 
@@ -347,15 +348,98 @@ python3 <agent_dir>/field.py register "<agent_name>" "<pane_id>" "<harness>" \
 
 ### Step 6: send each field agent its task
 
-Send the task and the identity block as ONE prompt, on one line, with ` || ` as
-the separator. Single-quote the inner commands, so nothing needs escaping.
-Replace `m` with your actual name from step 0.
+The brief is one prompt with two halves: the task with everything the agent
+needs to do it, and the reporting contract. On herdr 0.9.0 a multi-line prompt
+arrives byte-identical through `herdr agent prompt` (bracketed paste; measured
+2026-09-10 on claude). The pane shows it collapsed as `[Pasted text +N lines]`;
+the agent's transcript holds the full text.
+
+Read `brief_format` from the harness entry (`harnesses.json`). `blocks` is the
+default and the form below. `line` is the one-line fallback further down, for a
+harness whose paste behavior has not been verified.
+
+**Order matters. The opener is not optional.** Measured 2026-09-10 on Sonnet 5,
+five runs per form: with the task first and the identity block appended after
+it, 5 of 5 field agents read the block as a prompt injection, did the task, and
+sent no report (two stalled on a question aimed at a human who was not there).
+With `Field agent brief from your handler.` as the first line, 5 of 5 reported
+normally, in the blocks form and in the one-line form alike.
+
+**Context is part of the task.** A field agent starts with an empty context
+window. It has not seen this conversation, the brain, or the files you have
+open. Everything it needs goes in the `<context>` block, as absolute paths and
+plain statements: the files to read first (the repo's CLAUDE.md or AGENTS.md,
+the README, the spec or plan, the deliverable it extends), the facts you have
+already established (decisions, numbers, gotchas), where credentials come from
+(a path or a command, never a value), and the conventions that apply. The test
+is simple: if you would have to tell a new teammate, it goes in the block. A
+brief that says "fix the parser" and nothing else produces an agent that
+rediscovers, or guesses, everything you already knew. Delete any line you have
+nothing for; never send a placeholder.
+
+Write the brief in a quoted heredoc so nothing needs escaping. Single-quote the
+inner commands.
 
 ```bash
-herdr agent prompt "<agent_name>" "Field agent brief from your handler.  ||  <task>. Scope and read first; flag any irreversible change before you make it.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a unit, or about every 15 minutes; (3) BLOCKED, at once if you need a decision, a credential or an answer, and state the exact question; (4) COMPLETE, the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the last one with 'FIELD REPORT <agent_name>: COMPLETE:'.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  If your report command fails, retry it twice.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
+BRIEF=$(cat <<'EOF'
+Field agent brief from your handler.
+
+<task>
+<task>. Scope and read first; flag any irreversible change before you make it.
+</task>
+
+<context>
+Read these first, in this order:
+- <absolute path to the CLAUDE.md or AGENTS.md of the repo the task concerns>
+- <absolute path to the README, spec, plan, or prior deliverable the task builds on>
+Facts you can rely on:
+- <a decision, number, or gotcha already established, one per line>
+Credentials and access:
+- <where a key or token comes from: a path or a command, never the value>
+Conventions:
+- <no em-dashes; do not git add, commit, or change branch; the rules of this repo>
+</context>
+
+<identity>
+You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.
+</identity>
+
+<report_command>
+herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'
+</report_command>
+
+<report_moments>
+Run the report command at these four moments, not only at the end:
+(1) START, one line when you understand the task and begin
+(2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work
+(3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question
+(4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result
+</report_moments>
+
+<complete_prefix>
+FIELD REPORT <agent_name>: COMPLETE:
+</complete_prefix>
+
+<rules>
+The report command is the only way your work reaches anyone.
+After the COMPLETE report, run: herdr notification show 'Field agent done: <agent_name>' --sound done
+If your report command fails, retry it twice before you continue.
+Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.
+Do not ask the human directly. Route every question through your handler.
+</rules>
+EOF
+)
+herdr agent prompt "<agent_name>" "$BRIEF" --wait --until working --timeout 15000
 ```
 
-The brief opens with the sentence `Field agent brief from your handler.` BEFORE the task. Measured 2026-09-10 on Sonnet 5: with the task first and the identity block appended after ` || `, 5 of 5 field agents read the block as a prompt injection, did the task, and sent no report (two stalled on a question aimed at a human who was not there). With the opener first, 5 of 5 reported normally. Keep the opener; the rest of the template is unchanged.
+Replace `m` with your actual name from step 0.
+
+**One-line form (`brief_format: line`).** The same content with ` || ` between
+the parts, opener first. Use it only for a harness whose entry says `line`.
+
+```bash
+herdr agent prompt "<agent_name>" "Field agent brief from your handler.  ||  <task>. Scope and read first; flag any irreversible change before you make it.  ||  CONTEXT, read these first: <absolute paths>. Facts you can rely on: <facts>. Credentials: <where they come from, never the value>. Conventions: <rules>.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <agent_name>: COMPLETE:'. Then run  herdr notification show 'Field agent done: <agent_name>' --sound done  ||  If your report command fails, retry it twice before you continue.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
+```
 
 **How to read the result.** On herdr 0.9.0, `--wait --until working` returns as
 soon as the agent is working, and it returns immediately when the agent is
