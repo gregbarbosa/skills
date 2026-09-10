@@ -117,29 +117,34 @@ herdr agent rename "<pane_id>" "<name>"
 
 Do this before step 5, for any agent that holds a worktree.
 
-**Order matters.** A worktree workspace closes with its last pane, and
-`worktree remove` takes only `--workspace ID`, so once the workspace is gone the
-command fails with `workspace_not_found` and only git can clear the checkout.
+List them from the source repo:
 
 ```bash
 herdr worktree list --cwd "<the source repo>"
 ```
 
-An entry with `"is_linked_worktree": true` is a field-agent checkout. One with
-`"open_workspace_id": null` is already orphaned. Remove a live one while its
-workspace still exists, after the branch is merged or the user says so:
+An entry with `"is_linked_worktree": true` is a field-agent checkout. Which
+command clears it depends on whether it still has a workspace:
 
-```bash
-herdr worktree remove --workspace <wN>
-```
+- `"open_workspace_id"` present: the pane was never moved. Remove it while the
+  workspace exists, because the workspace closes with its last pane and
+  `worktree remove` takes only `--workspace ID`; afterwards the command fails
+  with `workspace_not_found`:
 
-For an orphaned checkout, fall back to git:
+  ```bash
+  herdr worktree remove --workspace <wN>
+  ```
 
-```bash
-git -C "<the source repo>" worktree remove "<path>"
-```
+- `"open_workspace_id"` missing or null: the handler moved the pane into the
+  room (`field-handler` step 4), or the workspace already closed. Only git
+  clears it:
 
-The branch survives in the source repository. The checkout does not.
+  ```bash
+  git -C "<the source repo>" worktree remove "<path>"
+  ```
+
+Either way, remove only after the branch is merged or the user says so. The
+branch survives in the source repository. The checkout does not.
 
 ## Step 5: Close the finished panes
 
