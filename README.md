@@ -9,7 +9,7 @@ Personal, reusable [Agent Skills](https://skills.sh) for AI coding agents: Claud
 | `field-agent` | Dispatch work to one field agent in a herdr tab or worktree. Names the agent, records it in the field ledger, arms a watch loop, and triages each report. Requires herdr >= 0.9.0. |
 | `field-handler` | This session becomes the handler: it opens a room of parallel field agents on one theme and steers them itself. Surfaces on its own when work gets complex; never spawns without agreement. Requires herdr >= 0.9.0. |
 | `field-audit` | Read each field agent's result, verify it, then close only the panes that are provably finished. Requires herdr >= 0.9.0. |
-| `herdr` | The herdr command surface: workspaces, tabs, panes, agents, and agent status. The three `field-*` skills assume this one. |
+| `herdr` | The semantics `herdr --skill` leaves out: agent status, the three agent handles, dispatch and wait idioms, worktree removal order, output shapes. The three `field-*` skills assume it. |
 | `handoff` | Write a post-compact continuation prompt (done, in-flight, next, hard rules) to `tasks/handoff-prompt.md`, then hand the user the `/compact` command. Use when context is running low mid-project or the user says "handoff". |
 | `component-system-builder` | Stand up a closed-world component + agent-rules system for a platform (Electron, Astro, SwiftUI, …), or retrofit one onto an existing project through an audited, pass-by-pass loop. Makes AI-generated apps consistent by removing choices. |
 
@@ -51,7 +51,7 @@ The `skills` packaging format has no group or dependency concept, so the groupin
 
 The vocabulary is borrowed from an intelligence service. **You** are the handler. Each agent you start is a **field agent**.
 
-`field-agent` dispatches one. It names the agent, records it in the ledger (`~/.claude/field/ledger.json`), and arms a watch loop that reports every state change. `field-handler` dispatches several on one shared theme and keeps this session steering them. `field-audit` sweeps up: it reads each result, verifies the work, and closes only the panes that are acknowledged and clean. `herdr` documents the command surface all three use.
+`field-agent` dispatches one. It names the agent, records it in the ledger (`~/.claude/field/ledger.json`), and arms a watch loop that reports every state change. `field-handler` dispatches several on one shared theme and keeps this session steering them. `field-audit` sweeps up: it reads each result, verifies the work, and closes only the panes that are acknowledged and clean. `herdr` carries the semantics `herdr --skill` leaves out, which all three rely on.
 
 The ledger tool `field.py` has exactly one copy, in `skills/field-agent/`. `field-handler` and `field-audit` call it there. Do not copy it into another skill folder; a second copy goes stale the moment the first one changes.
 

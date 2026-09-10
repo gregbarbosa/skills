@@ -11,8 +11,9 @@ user that you do not run inside a herdr pane. Then stop.
 Run `herdr --version`. This skill needs **0.9.0 or later**. On an earlier
 version, tell the user to run `herdr update`. Then stop.
 
-Read the **`herdr`** skill for the command surface. Several field agents on one
-theme is the **`field-handler`** skill.
+Run `herdr --skill` for the command surface, then read the **`herdr`** skill for
+the semantics it leaves out. Several field agents on one theme is the
+**`field-handler`** skill.
 
 `<skill_dir>` below is this skill's own directory (the `Base directory for this
 skill:` path above). It holds `field.py`, the ledger tool, whose state lives in

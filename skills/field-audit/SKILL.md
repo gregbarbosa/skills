@@ -13,7 +13,8 @@ version, tell the user to run `herdr update`. Then stop.
 
 A closed pane destroys unread output, so this skill reads first and closes
 last. **`field-agent`** dispatches one field agent, **`field-handler`** runs a
-room, **`herdr`** documents the command surface; the four are one suite.
+room, **`herdr`** carries the semantics `herdr --skill` leaves out; the four
+are one suite.
 
 The ledger tool `field.py` lives in the `field-agent` skill's directory (one
 copy, so it cannot go stale). Find it once and call it `<agent_dir>`:
