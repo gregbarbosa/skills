@@ -335,6 +335,13 @@ brief that says "fix the parser" and nothing else produces an agent that
 rediscovers, or guesses, everything you already knew. Delete any line you have
 nothing for; never send a placeholder.
 
+Two rules exist to cut overhead, measured 2026-09-10 against a native subagent on
+the same task: the field agent spent 4 of its 9 tool calls on the contract, and
+typed its result twice (the COMPLETE report, then a closing summary nobody reads).
+The notification is chained onto the COMPLETE command, and the COMPLETE report is
+the agent's last message. START stays: it is the only early signal that the brief
+was understood rather than refused.
+
 Write the brief in a quoted heredoc so nothing needs escaping. Single-quote the
 inner commands.
 
@@ -380,7 +387,8 @@ FIELD REPORT <name>: COMPLETE:
 
 <rules>
 The report command is the only way your work reaches anyone.
-After the COMPLETE report, run: herdr notification show 'Field agent done: <name>' --sound done
+Send the COMPLETE report and the notification as ONE command: herdr agent prompt 'm' 'FIELD REPORT <name>: COMPLETE: ...' && herdr notification show 'Field agent done: <name>' --sound done
+Your COMPLETE report is your final message. Do not write a second summary in the pane after it.
 If your report command fails, retry it twice before you continue.
 Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.
 Do not ask the human directly. Route every question through your handler.
@@ -396,7 +404,7 @@ Replace `m` with your actual name from step 1.
 the parts, opener first. Use it only for a harness whose entry says `line`.
 
 ```bash
-herdr agent prompt "<name>" "Field agent brief from your handler.  ||  <request>  ||  CONTEXT, read these first: <absolute paths>. Facts you can rely on: <facts>. Credentials: <where they come from, never the value>. Conventions: <rules>.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<name>' in herdr pane <pane_id>. Your handler is agent 'm' in pane <self_pane>.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <name>: COMPLETE:'. Then run  herdr notification show 'Field agent done: <name>' --sound done  ||  If your report command fails, retry it twice before you continue.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
+herdr agent prompt "<name>" "Field agent brief from your handler.  ||  <request>  ||  CONTEXT, read these first: <absolute paths>. Facts you can rely on: <facts>. Credentials: <where they come from, never the value>. Conventions: <rules>.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<name>' in herdr pane <pane_id>. Your handler is agent 'm' in pane <self_pane>.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <name>: COMPLETE:' and send it and the notification as ONE command: herdr agent prompt 'm' 'FIELD REPORT <name>: COMPLETE: ...' && herdr notification show 'Field agent done: <name>' --sound done  ||  Your COMPLETE report is your final message; do not write a second summary after it.  ||  If your report command fails, retry it twice before you continue.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
 ```
 
 **How to read the result.** On herdr 0.9.0, `--wait --until working` returns as
