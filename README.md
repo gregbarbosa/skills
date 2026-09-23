@@ -10,7 +10,7 @@ Personal, reusable [Agent Skills](https://skills.sh) for AI coding agents: Claud
 | `field-handler` | This session becomes the handler: it opens a room of parallel field agents on one theme and steers them itself. Surfaces on its own when work gets complex; never spawns without agreement. Requires herdr >= 0.9.0. |
 | `field-audit` | Read each field agent's result, verify it, then close only the panes that are provably finished. Requires herdr >= 0.9.0. |
 | `herdr` | The semantics `herdr --skill` leaves out: agent status, the three agent handles, dispatch and wait idioms, worktree removal order, output shapes. The three `field-*` skills assume it. |
-| `handoff` | Write a post-compact continuation prompt (done, in-flight, next, hard rules) to `tasks/handoff-prompt.md`, then hand the user the `/compact` command. Use when context is running low mid-project or the user says "handoff". |
+| `handoff` | Write a post-compact continuation prompt (done, in-flight, next, hard rules) to a new dated file under `~/.claude/handoffs/<repo>/` (outside every repo, so parallel agents never overwrite each other), then hand the user the `/compact` command. Use when context is running low mid-project or the user says "handoff". |
 | `component-system-builder` | Stand up a closed-world component + agent-rules system for a platform (Electron, Astro, SwiftUI, …), or retrofit one onto an existing project through an audited, pass-by-pass loop. Makes AI-generated apps consistent by removing choices. |
 
 ### `field-agent` harness picker
