@@ -69,16 +69,18 @@ ${HANDOFF_DIR:-$HOME/.claude/handoffs}/<repo>/<YYYY-MM-DD-HHMM>-<slug>.md
 4. **Hand off the compact step.** Give the user the command with the file's
    absolute path:
 
-   /compact Read <absolute path>. Run its Verify first checks, then set its status to consumed and resume from IN-FLIGHT.
+   /compact Read <absolute path>. Run its Verify first checks; if they pass, set its status to consumed and resume from IN-FLIGHT; if not, report the drift and wait.
 
    (Instructions passed to /compact steer the summary; the file is the real
    contract.)
 
 ## Resuming from a handoff
 
-A session that resumes from a handoff runs its "Verify first" checks, then
-sets the front matter `status: consumed`. That one field is the only edit a
-session makes to a handoff it did not write. From there it works the
+A session that resumes from a handoff runs its "Verify first" checks first.
+When they pass, or once the user has settled any drift they found, it sets
+the front matter `status: consumed`; a handoff whose checks failed stays
+`open`, so cleanup never deletes work nobody resumed. That one field is the
+only edit a session makes to a handoff it did not write. From there it works the
 IN-FLIGHT checklist until the "Done when" line holds. When the resumed
 session compacts in turn, it writes a new handoff.
 
