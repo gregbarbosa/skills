@@ -58,7 +58,9 @@ ${HANDOFF_DIR:-$HOME/.claude/handoffs}/<repo>/<YYYY-MM-DD-HHMM>-<slug>.md
      (nomenclature, writing rules) that must survive the compaction.
    - "IN-FLIGHT (resume here)": a checklist (`- [ ]`) of the exact next
      actions, with enough detail to resume without re-derivation, ending on
-     a "Done when:" line that states the completion condition. PENDING USER
+     a "Done when:" line that states the completion condition. Each item
+     becomes one task in the next session, so write each as a single,
+     self-contained action with a short imperative title. PENDING USER
      DECISIONS go in as their own items so the next session asks instead of
      guessing.
    - "Then": the next 1-3 backlog items after the in-flight work.
@@ -69,7 +71,7 @@ ${HANDOFF_DIR:-$HOME/.claude/handoffs}/<repo>/<YYYY-MM-DD-HHMM>-<slug>.md
 4. **Hand off the compact step.** Give the user the command with the file's
    absolute path:
 
-   /compact Read <absolute path>. Run its Verify first checks; if they pass, set its status to consumed and resume from IN-FLIGHT; if not, report the drift and wait.
+   /compact Read <absolute path>. Run its Verify first checks; if they pass, set its status to consumed, create one task per IN-FLIGHT item with the task tool, and resume from the first task; if not, report the drift and wait.
 
    (Instructions passed to /compact steer the summary; the file is the real
    contract.)
@@ -80,8 +82,17 @@ A session that resumes from a handoff runs its "Verify first" checks first.
 When they pass, or once the user has settled any drift they found, it sets
 the front matter `status: consumed`; a handoff whose checks failed stays
 `open`, so cleanup never deletes work nobody resumed. That one field is the
-only edit a session makes to a handoff it did not write. From there it works the
-IN-FLIGHT checklist until the "Done when" line holds. When the resumed
+only edit a session makes to a handoff it did not write.
+
+Next it loads the IN-FLIGHT checklist into the harness's task list (in Claude
+Code, `TaskCreate`; load it with ToolSearch if it is deferred). One task per
+unchecked item, in order, with the item's detail as the description. A
+pending user decision becomes a task too, so it stays visible until the user
+answers. "Then" items stay in the file; they are not tasks yet. Without a
+task tool, skip this step and work from the file.
+
+From there it works the tasks, marking each one in progress and then
+completed, until the "Done when" line holds. When the resumed
 session compacts in turn, it writes a new handoff.
 
 ## Rules
