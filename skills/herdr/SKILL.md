@@ -69,6 +69,19 @@ A harness flag can fail to take (Haiku 4.5 ignores `--permission-mode auto`).
 Read the status line after the start: `⏵⏵ auto mode on` versus
 `⏸ manual mode on`.
 
+## After a server restart
+
+herdr resumes each agent in its pane after a server restart, one at a time
+(`[session] startup_per_agent_delay_ms`, 100 ms apart by default). A tested
+claude agent kept its name, pane id, `agent_session.value`, permission
+mode and model, so a report addressed by name still arrives. Two things change:
+
+- `state_change_seq` restarts low, and `completion_seq` is absent until the
+  next turn. A counter that went down is a restart, not a turn.
+- An agent that never received a prompt does not come back: Claude Code wrote
+  no transcript, the resume prints "No conversation found with session ID",
+  and the pane is left at a shell. Prompt an agent soon after you start it.
+
 ## Prompting and waiting
 
 `agent prompt` sends the text and Enter in one request and respects bracketed
