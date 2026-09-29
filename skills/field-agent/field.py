@@ -22,7 +22,7 @@ This is the ONLY copy of this tool. The `field-handler` and `field-audit`
 skills call it at this path. Do not copy it into another skill directory. A
 second copy goes stale the moment this one changes.
 
-Verified against herdr 0.9.0.
+Verified against herdr 0.9.2.
 """
 
 import json
@@ -337,6 +337,7 @@ def cmd_watch(args):
 
     self_pane = handler_pane()
     seen = read_json(WATCH_STATE, {})
+    missing = {}  # key -> consecutive polls the agent was absent
 
     while True:
         agents = herdr_agents()
@@ -396,8 +397,18 @@ def cmd_watch(args):
             # `state_change_seq` advances on every turn herdr observes. It is
             # the only way to see a turn that started and finished between two
             # polls, which a status comparison alone cannot detect.
+            #
+            # A herdr server restart resumes each agent with the same session
+            # id but restarts its counter low (8 became 2 in a test on 0.9.2).
+            # A counter that went DOWN is a restart, not a turn. Counting it as
+            # a turn re-raised every acknowledged agent after each restart.
+            restarted = (seq is not None and prev_seq is not None
+                         and seq < prev_seq)
             turned = (seq is not None and prev_seq is not None
-                      and seq != prev_seq)
+                      and seq > prev_seq)
+            if restarted and status == prev:
+                seen[key] = {"status": status, "seq": seq}
+                continue
 
             if status != prev or turned:
                 seen[key] = {"status": status, "seq": seq}
@@ -417,7 +428,11 @@ def cmd_watch(args):
                     entered = prev not in SETTLED
                     new_turn = turned and not entered
                     unread = rec is None or not rec.get("acknowledged")
-                    if entered or new_turn or unread:
+                    # A move into `blocked` always needs a human, even for an
+                    # acknowledged agent: a restart can resume one onto a
+                    # startup dialog with no new turn to flag it.
+                    newly_blocked = status == "blocked" and prev != "blocked"
+                    if entered or new_turn or unread or newly_blocked:
                         emit(status.upper(), rec, agent, prev)
                     if rec is not None:
                         rec["status"] = status
@@ -430,9 +445,17 @@ def cmd_watch(args):
                     ledger["agents"][key] = rec
                     write_json(LEDGER, ledger)
 
-        # An agent whose pane closed stops appearing in the list.
+        # An agent whose pane closed stops appearing in the list. So does every
+        # agent for a few seconds while a restarted herdr server resumes them
+        # one at a time. Wait for a second poll without the agent before
+        # calling it gone, so a restart does not report the roster as GONE.
         for key in list(seen):
-            if key not in live_keys:
+            if key in live_keys:
+                missing.pop(key, None)
+                continue
+            missing[key] = missing.get(key, 0) + 1
+            if missing[key] >= 2:
+                missing.pop(key)
                 rec = ledger["agents"].get(key)
                 if isinstance(rec, dict) and not rec.get("acknowledged"):
                     emit("GONE", rec, None, seen_entry(seen[key])[0],

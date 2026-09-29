@@ -8,8 +8,11 @@ description: Dispatch one field agent (claude, glm, ds, opencode or pi) into a h
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
 
-Run `herdr --version`. This skill needs **0.9.0 or later**. On an earlier
-version, tell the user to run `herdr update`. Then stop.
+Run `herdr status` and read the server's `version`. `herdr --version` prints
+only the client, and after an update the running server can be older. This
+skill needs a **0.9.0 or later** server. On an earlier server, tell the user
+to run `herdr update` and restart the server. Then stop. If `restart_needed`
+is `yes`, tell the user and continue.
 
 Run `herdr --skill` for the command surface, then read the **`herdr`** skill for
 the semantics it leaves out. Several field agents on one theme is the
@@ -456,5 +459,6 @@ python3 <skill_dir>/field.py ack "<name>" "verified; 3 files changed; tests pass
 | A callback reaches the wrong pane | The brief carried a pane id, and the pane moved | Address the handler by name. Rule 1. |
 | The field agent asks a question that nobody sees | The brief did not tell it how to report | Every brief carries the identity block. Rule 2. |
 | The agent finished hours ago, unread | No watch loop was armed | Arm it in step 2. Run `catchup` once. |
+| No events after a herdr server restart | The restart stopped the `Monitor` that ran the watch loop | Arm it again (step 2), then run `catchup` once. |
 | `agent list` shows an unnamed agent | A wrapper harness was launched without a rename | `herdr agent rename <pane> <name>`, then register it. |
 | A prompt stalls in the input box | Bracketed paste, or a startup dialog | Read the pane. Clear the dialog. Send Enter. |

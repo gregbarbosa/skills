@@ -8,8 +8,11 @@ description: Run a room of parallel field agents on one theme and steer them fro
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
 
-Run `herdr --version`. This skill needs **0.9.0 or later**. On an earlier
-version, tell the user to run `herdr update`. Then stop.
+Run `herdr status` and read the server's `version`. `herdr --version` prints
+only the client, and after an update the running server can be older. This
+skill needs a **0.9.0 or later** server. On an earlier server, tell the user
+to run `herdr update` and restart the server. Then stop. If `restart_needed`
+is `yes`, tell the user and continue.
 
 Run `herdr --skill` for the command surface, then read the **`herdr`** skill for
 the semantics it leaves out and the **`field-agent`** skill for the dispatch
@@ -495,4 +498,5 @@ through the audit, not on your own judgment.
 | `agent list` shows an unnamed agent | A wrapper harness launched without a rename | `herdr agent rename <pane> <name>`, then register it. |
 | A prompt stalls in the input box | Bracketed paste, or a startup dialog | Read the pane. Clear the dialog. Send Enter. |
 | The room finished hours ago, unread | No watch loop was armed | Arm it in step 0. Run `catchup` once. |
+| No events after a herdr server restart | The restart stopped the `Monitor` that ran the watch loop | Arm it again in step 0, then run `catchup` once. |
 | `agent start` returns `agent_not_ready` | A startup dialog blocked the agent | The name still works. Read the pane, clear the dialog, continue. |
