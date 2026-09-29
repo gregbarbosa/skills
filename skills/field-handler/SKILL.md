@@ -1,18 +1,12 @@
 ---
 name: field-handler
-description: Run a room of parallel field agents on one theme and steer them from this session. Use when work splits into independent strands that could progress in parallel, such as several projects moving toward one goal. Surfaces the option and agrees scope with the user before spawning anything. Requires herdr 0.9.0 or later inside a herdr pane.
+description: Run a room of parallel field agents on one theme and steer them from this session. Use when work splits into independent strands that could progress in parallel, such as several projects moving toward one goal. Surfaces the option and agrees scope with the user before spawning anything. Requires a herdr pane.
 ---
 
 # field-handler: run a room of field agents
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
-
-Run `herdr status` and read the server's `version`. `herdr --version` prints
-only the client, and after an update the running server can be older. This
-skill needs a **0.9.0 or later** server. On an earlier server, tell the user
-to run `herdr update` and restart the server. Then stop. If `restart_needed`
-is `yes`, tell the user and continue.
 
 Run `herdr --skill` for the command surface, then read the **`herdr`** skill for
 the semantics it leaves out and the **`field-agent`** skill for the dispatch

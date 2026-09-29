@@ -1,18 +1,12 @@
 ---
 name: field-audit
-description: Read each dispatched field agent's result, verify it, report a verdict, then close only the panes that are provably finished. Use when the user asks to audit, sweep, tidy or close the agents and panes you dispatched. Requires herdr 0.9.0 or later inside a herdr pane.
+description: Read each dispatched field agent's result, verify it, report a verdict, then close only the panes that are provably finished. Use when the user asks to audit, sweep, tidy or close the agents and panes you dispatched. Requires a herdr pane.
 ---
 
 # field-audit: read the results, then close what is finished
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
-
-Run `herdr status` and read the server's `version`. `herdr --version` prints
-only the client, and after an update the running server can be older. This
-skill needs a **0.9.0 or later** server. On an earlier server, tell the user
-to run `herdr update` and restart the server. Then stop. If `restart_needed`
-is `yes`, tell the user and continue.
 
 A closed pane destroys unread output, so this skill reads first and closes
 last. **`field-agent`** dispatches one field agent, **`field-handler`** runs a

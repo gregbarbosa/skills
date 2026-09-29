@@ -72,8 +72,8 @@ Read the status line after the start: `⏵⏵ auto mode on` versus
 ## After a server restart
 
 herdr resumes each agent in its pane after a server restart, one at a time
-(`[session] startup_per_agent_delay_ms`, 100 ms apart by default). A claude
-agent tested on 0.9.2 kept its name, pane id, `agent_session.value`, permission
+(`[session] startup_per_agent_delay_ms`, 100 ms apart by default). A tested
+claude agent kept its name, pane id, `agent_session.value`, permission
 mode and model, so a report addressed by name still arrives. Two things change:
 
 - `state_change_seq` restarts low, and `completion_seq` is absent until the

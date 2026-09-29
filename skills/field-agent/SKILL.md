@@ -1,18 +1,12 @@
 ---
 name: field-agent
-description: Dispatch one field agent (claude, glm, ds, opencode or pi) into a herdr tab or worktree with a reporting contract, a ledger record and a watch loop. Use when the user asks to launch, spawn, dispatch or hand off work to another agent. Several agents on one theme is field-handler. Requires herdr 0.9.0 or later inside a herdr pane.
+description: Dispatch one field agent (claude, glm, ds, opencode or pi) into a herdr tab or worktree with a reporting contract, a ledger record and a watch loop. Use when the user asks to launch, spawn, dispatch or hand off work to another agent. Several agents on one theme is field-handler. Requires a herdr pane.
 ---
 
 # field-agent: dispatch a field agent and keep it
 
 Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
 user that you do not run inside a herdr pane. Then stop.
-
-Run `herdr status` and read the server's `version`. `herdr --version` prints
-only the client, and after an update the running server can be older. This
-skill needs a **0.9.0 or later** server. On an earlier server, tell the user
-to run `herdr update` and restart the server. Then stop. If `restart_needed`
-is `yes`, tell the user and continue.
 
 Run `herdr --skill` for the command surface, then read the **`herdr`** skill for
 the semantics it leaves out. Several field agents on one theme is the
