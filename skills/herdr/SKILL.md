@@ -56,7 +56,7 @@ as "needs attention". `idle` and `done` differ only by the server's seen flag:
 `agent focus` and `agent prompt` mark the target seen and flip `done` to
 `idle`, a read does not, and each TUI client tracks completions separately, so
 the app's Done badge can differ from the CLI. Harnesses differ too: pi ends at
-`done`; opencode has been seen at `working` after it finished.
+`done`.
 
 ## Starting an agent
 
