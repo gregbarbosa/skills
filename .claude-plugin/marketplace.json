@@ -1,0 +1,14 @@
+{
+  "name": "gregbarbosa",
+  "owner": {
+    "name": "Greg Barbosa"
+  },
+  "description": "Greg Barbosa's Claude Code mods. The skills in this repo install separately with npx skills.",
+  "plugins": [
+    {
+      "name": "handoff-compact",
+      "source": "./mods/handoff-compact",
+      "description": "/handoff-compact writes a handoff, compacts with the usual resume instructions and resumes, in one step"
+    }
+  ]
+}
