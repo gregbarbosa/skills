@@ -103,6 +103,16 @@ npx skills add gregbarbosa/skills -s field-agent -g -a claude-code -y
 
 Drop the `-g` flag to install into the current project (`.claude/skills/`) instead of your user directory.
 
+## Evals
+
+`evals/` holds trigger evals for the skills Claude invokes on its own: each case checks that the right skill fires (or stays quiet) for a realistic prompt, against a no-skill baseline. Cases allow only the `Skill` tool, so nothing launches real agents. Run them from the repo root:
+
+```shell
+claude plugin eval . --no-publish --max-cost-usd 6 -j 4
+```
+
+A full run is 36 short sessions and cost $3.31 on 2026-10-07. Each case lists the skill directories it loads under `plugins:`; add a case per new model-invoked skill, with a negative case beside it.
+
 ## Claude Code mods
 
 The repo is also a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) for mods: function-hook plugins that add commands, bands and status lines inside Claude Code. Mods are Claude Code only, so they install separately from the skills above; `npx skills` ignores them.
