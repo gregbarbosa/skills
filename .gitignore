@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+# Type files the Claude Code engine lays into each mod on load
+mods/*/.claude-plugin/types/

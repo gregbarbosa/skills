@@ -1,6 +1,6 @@
 # Greg Barbosa's Agent Skills
 
-Personal, reusable [Agent Skills](https://skills.sh) for AI coding agents: Claude Code, Codex, Cursor, and 70+ others.
+Personal, reusable [Agent Skills](https://skills.sh) for AI coding agents: Claude Code, Codex, Cursor, and 70+ others. Plus a few [Claude Code mods](#claude-code-mods).
 
 ## Skills
 
@@ -103,6 +103,33 @@ npx skills add gregbarbosa/skills -s field-agent -g -a claude-code -y
 
 Drop the `-g` flag to install into the current project (`.claude/skills/`) instead of your user directory.
 
+## Claude Code mods
+
+The repo is also a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) for mods: function-hook plugins that add commands, bands and status lines inside Claude Code. Mods are Claude Code only, so they install separately from the skills above; `npx skills` ignores them.
+
+| Mod | What it does |
+| --- | --- |
+| `handoff-compact` | `/handoff-compact [notes]` runs the `handoff` skill, then, once the file is saved under `~/.claude/handoffs/`, shows a band (`Handoff saved: <file> · compacting in 10s`, with Compact now and Cancel), compacts with the handoff's resume instructions and submits the resume prompt. Typing anything stops the countdown. Needs the `handoff` skill installed. |
+
+Install from the prompt of a terminal Claude Code session, answering `y` to add the marketplace and choosing the user scope:
+
+```shell
+/plugin install handoff-compact --marketplace gregbarbosa/skills
+```
+
+If you already load the mod from a local folder (`--plugin-dir` or `CLAUDE_CODE_PLUGIN_DIRS`), remove that entry when you install it here: both copies load otherwise, and each runs its own countdown and compaction.
+
+An installed mod is a copy in the plugin cache, kept per version. To pick up a newer one:
+
+```shell
+claude plugin marketplace update gregbarbosa
+claude plugin update handoff-compact@gregbarbosa
+```
+
+then restart Claude Code. The update compares versions, so a change merged without a `version` bump in the mod's `plugin.json` never reaches an installed copy.
+
+To work on a mod, run it from your clone with `claude --plugin-dir mods/<name>`, then `claude plugin validate mods/<name>` and `claude plugin test mods/<name>` before opening a PR. Every PR that changes a mod bumps its `version`.
+
 ## Add or modify a skill
 
 ```shell
@@ -122,6 +149,11 @@ skills/
   <name>/SKILL.md
   <name>/references/*.md      # optional, loaded on demand
   <name>/<config>.json        # optional
+mods/
+  <name>/.claude-plugin/plugin.json
+  <name>/hooks/hooks.json, register.tsx, *.test.ts
+  <name>/types/index.d.ts     # the mod's state contract
+.claude-plugin/marketplace.json   # lists the mods
 ```
 
-Each skill is one folder containing a `SKILL.md`. The `skills` CLI discovers them automatically, and sibling files and subdirectories install alongside it.
+Each skill is one folder containing a `SKILL.md`. The `skills` CLI discovers them automatically, and sibling files and subdirectories install alongside it. Each mod is one plugin folder under `mods/`, listed in the marketplace file.
