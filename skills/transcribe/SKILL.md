@@ -51,14 +51,6 @@ speech-to-text, which runs locally on the app's model.
    working directory (gitignored, e.g. `*.mp3`/`*.mp4`/`*.webm`/`*.wav`/`*.m4a`)
    or is deleted once the transcript is captured.
 
-## Key flags (from `mw help transcribe`)
+## Other flags
 
-- `--model <engine:model-id>`: override the app's selected model for this run.
-- `--language <code|auto>`: source language; defaults to the app's setting.
-- `--format <txt|srt|vtt|json|csv|md|html|avid>`: output format, default `txt`.
-- `--style <transcript|subtitles|segments>`: export style; not all formats support every style.
-- `--timestamps` / `--no-timestamps`: per-segment timestamps (text formats only).
-- `--speakers` / `--no-speakers`, `--speaker-names` / `--no-speaker-names`: diarization on/off, and whether to label segments with speaker names.
-- `-o, --output <path>`: single file output (parent dir must exist); `--output-dir <dir>` for batch/folder input.
-- `--overwrite`: required to replace an existing output file.
-- `--stream`: print segments live as they finalize (single input only, incompatible with non-txt formats).
+`--model`, `--language`, `--timestamps`, `--output-dir` (batch or folder input) and `--stream` cover the rest; `mw help transcribe` is the always-current reference.
