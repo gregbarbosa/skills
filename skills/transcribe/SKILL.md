@@ -1,6 +1,7 @@
 ---
 name: transcribe
 description: Transcribe a local audio/video file, or a video at a URL (YouTube etc.), to text using yt-dlp (to fetch remote video/audio) and the MacWhisper CLI (mw). Use when the user wants a transcript of a video URL, a downloaded recording, a webinar, or any local audio/video file.
+argument-hint: "<video URL or file path>"
 ---
 
 # Transcribe

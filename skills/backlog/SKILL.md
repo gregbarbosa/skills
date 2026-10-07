@@ -1,6 +1,7 @@
 ---
 name: backlog
-description: Move the current herdr pane into a new tab in the workspace labeled "Backlog", keeping the original tab's name. Use only when the user runs /backlog or asks to send this pane or tab to the backlog. Requires a herdr pane (HERDR_ENV=1).
+description: Move the current herdr pane into a new tab in the workspace labeled "Backlog", keeping the original tab's name. Run by the user as /backlog. Requires a herdr pane (HERDR_ENV=1).
+disable-model-invocation: true
 ---
 
 Check that `HERDR_ENV=1` first. If it is not, tell the user this session is not in a herdr-managed pane and stop, because every step below talks to the herdr server.
