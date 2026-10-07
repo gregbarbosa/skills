@@ -1,34 +1,25 @@
 ---
 name: backlog
-description: Use ONLY when the user explicitly runs /backlog or asks to move the current pane/tab into the Backlog herdr workspace. Moves the current pane into the workspace labeled "Backlog", preserving the original tab's name. Requires running inside herdr.
+description: Move the current herdr pane into a new tab in the workspace labeled "Backlog", keeping the original tab's name. Use when the user runs /backlog or asks to send this pane or tab to the backlog. Requires a herdr pane (HERDR_ENV=1).
 ---
 
-Before using this skill, check that `HERDR_ENV=1`. If it is not set to `1`, tell the user you are not running inside a herdr-managed pane and stop. Do not attempt the steps below from outside herdr.
+Check that `HERDR_ENV=1` first. If it is not, tell the user this session is not in a herdr-managed pane and stop, because every step below talks to the herdr server.
 
-When invoked, execute these steps immediately without asking for confirmation:
+Run the steps straight through; the user asked for the move, so it needs no confirmation.
 
-1. Get your own pane id and tab id LIVE (do not trust a stale env var, it can go stale after a pane move): `herdr pane current`. Note `result.pane.pane_id` and `result.pane.tab_id`.
+1. Read your own pane and tab ids live with `herdr pane current`, noting `result.pane.pane_id` and `result.pane.tab_id`. An id from an environment variable can be stale after an earlier pane move.
 
-2. Get the name to preserve: `herdr tab get <tab_id>`. Use `result.tab.label` as the name to carry over. If a tab somehow has no `label` field, fall back to `terminal_title_stripped` from step 1's `pane current` output.
+2. Read the name to carry over with `herdr tab get <tab_id>`, taking `result.tab.label`. If the tab has no `label`, use `terminal_title_stripped` from step 1's output.
 
-3. Find the target workspace: `herdr workspace list`. Find the workspace whose `label` contains "Backlog" (case-insensitive; ignore any emoji prefix like "⚪ "). If zero or more than one workspace matches, tell the user the workspace couldn't be resolved unambiguously and stop rather than guessing.
+3. Find the target with `herdr workspace list`: the one workspace whose `label` contains "Backlog", case-insensitive, ignoring any emoji prefix. Match on the label text, since workspace numbers shift as workspaces open and close. If zero or several match, tell the user the target is ambiguous and stop.
 
-4. Move the pane into a new tab in that workspace, passing the preserved name as the tab label:
+4. Move the pane into a new tab there, passing the preserved name:
    `herdr pane move <pane_id> --new-tab --workspace <target_workspace_id> --label "<preserved_name>" --no-focus`
-   Default to `--no-focus` (keeps the user's current view in place) unless they've asked to jump to the moved pane, in which case use `--focus` instead.
+   `--no-focus` keeps the user's view where it is; use `--focus` only when they asked to follow the pane.
 
-5. Confirm to the user in one line: which workspace the pane moved to and that the tab kept its original name.
+5. Confirm in one line: the workspace the pane moved to, and that the tab kept its name.
 
-## Common mistakes
+## Gotchas
 
-- Using `--tab-label` — that flag only exists on the `--new-workspace` form of `pane move` (creating a brand-new workspace). Moving into an *existing* workspace with `--new-tab` takes the name via `--label` instead.
-- Matching the target workspace by number or emoji instead of the text label substring — workspace numbers shift as workspaces are added or closed.
-- Reading `terminal_id` where `pane_id` is meant — `pane move` takes the pane_id (e.g. `w4:p3N`), not the terminal_id (e.g. `term_...`).
-
-## Verified
-
-Tested live 2026-07-31 against herdr: created a disposable tab labeled "backlog-skill-test" in the current workspace, ran `herdr pane move <id> --new-tab --workspace <backlog-workspace-id> --label "backlog-skill-test" --no-focus`, confirmed the resulting tab in the Backlog workspace kept the exact label, then closed the test tab.
-
-## Related (planned)
-
-Sibling commands `/in-progress` and `/blocked` will follow the same five steps against workspaces labeled "In Progress" and "Blocked" respectively — not yet built.
+- Moving into an existing workspace with `--new-tab` takes the name as `--label`. `--tab-label` belongs to the `--new-workspace` form only.
+- `pane move` takes the `pane_id` (like `w4:p3N`), not the `terminal_id` (like `term_...`).
