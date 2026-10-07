@@ -119,7 +119,16 @@ Install from the prompt of a terminal Claude Code session, answering `y` to add 
 
 If you already load the mod from a local folder (`--plugin-dir` or `CLAUDE_CODE_PLUGIN_DIRS`), remove that entry when you install it here: both copies load otherwise, and each runs its own countdown and compaction.
 
-To work on a mod, run it from your clone with `claude --plugin-dir mods/<name>`, then `claude plugin validate mods/<name>` and `claude plugin test mods/<name>` before opening a PR.
+An installed mod is a copy in the plugin cache, kept per version. To pick up a newer one:
+
+```shell
+claude plugin marketplace update gregbarbosa
+claude plugin update handoff-compact@gregbarbosa
+```
+
+then restart Claude Code. The update compares versions, so a change merged without a `version` bump in the mod's `plugin.json` never reaches an installed copy.
+
+To work on a mod, run it from your clone with `claude --plugin-dir mods/<name>`, then `claude plugin validate mods/<name>` and `claude plugin test mods/<name>` before opening a PR. Every PR that changes a mod bumps its `version`.
 
 ## Add or modify a skill
 
