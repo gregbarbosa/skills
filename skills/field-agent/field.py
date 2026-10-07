@@ -11,7 +11,8 @@ Subcommands:
   ack        Mark a field agent's result as read by the handler.
   status     Print the current roster as a table.
   note       Append a free-text note to a field agent's record.
-  queue      Attach a follow-up task to a field agent's record.
+  queue      Attach a follow-up task to a field agent's record; --done clears it.
+  brief      Print the brief (task plus reporting contract) for one agent.
   audit      Print a close or hold verdict for each live agent.
   close      Close one agent's pane, with the safety checks.
 
@@ -22,7 +23,7 @@ This is the ONLY copy of this tool. The `field-handler` and `field-audit`
 skills call it at this path. Do not copy it into another skill directory. A
 second copy goes stale the moment this one changes.
 
-Verified against herdr 0.9.2.
+Verified against herdr 0.9.3.
 """
 
 import json
@@ -601,10 +602,174 @@ def cmd_queue(args):
     if rec is None:
         print(f"no ledger record for {args[0]}")
         sys.exit(1)
+    if args[1:] == ["--done"]:
+        # The handler dispatched the follow-up. Clear it, or `close` refuses
+        # this agent forever, and keep the text as a note.
+        if not rec.get("queued_followup"):
+            print(f"{rec.get('name')} has no queued follow-up")
+            return
+        append_note(rec, f"follow-up dispatched: {rec['queued_followup']}")
+        rec["queued_followup"] = None
+        ledger["agents"][key] = rec
+        write_json(LEDGER, ledger)
+        print(f"cleared follow-up for {rec.get('name')}")
+        return
     rec["queued_followup"] = " ".join(args[1:])
     ledger["agents"][key] = rec
     write_json(LEDGER, ledger)
     print(f"queued follow-up for {rec.get('name')}")
+
+
+# --------------------------------------------------------------------------
+# brief: the reporting contract, rendered from one copy
+# --------------------------------------------------------------------------
+
+# Every line of the contract below was tuned against live agents. The opener
+# comes first because without it Sonnet 5 read the identity block as an
+# injection and went silent (5 of 5 runs). Change the wording only with a
+# test against a live agent, and update test_field.py with it.
+OPENER = "Field agent brief from your handler."
+SCOPED = " Scope and read first; flag any irreversible change before you make it."
+TIME_MATTERS = ("Time matters here: do not spend time that can be avoided, "
+                "and the earlier a correct result is obtained, the better.")
+
+REPORT_MOMENTS = [
+    "(1) START, one line when you understand the task and begin",
+    "(2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work",
+    "(3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question",
+    "(4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result",
+]
+
+RULES_TAIL = [
+    "Before you change anything, read the files that the task can depend on, including files that this brief does not name.",
+    "Keep the parts of your task as a checklist in ~/.claude/field/checklists/{n}.md (create it at START). Tick each item when it is done. Send COMPLETE only when every item is ticked; otherwise send BLOCKED and name the open items.",
+]
+RULES_END = [
+    "If your report command fails, retry it twice before you continue.",
+    "Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.",
+    "Do not ask the human directly. Route every question through your handler.",
+]
+TURN_RULE = "Your turn ends only with a COMPLETE or a BLOCKED report. Do not stop on a summary that announces the next step, an offer to continue unless told otherwise, a list of decisions that block nothing, or a milestone that feels like a good place to report. Send the MILESTONE report in the same message as your next tool call and keep working. Before a risky or irreversible action, report BLOCKED and wait."
+
+
+def render_brief(name, pane, handler, task, context=None, budget=None,
+                 started="00:00", fmt="blocks"):
+    """Return the full brief text for one field agent."""
+    n, m = name, handler
+    report = f"herdr agent prompt '{m}' 'FIELD REPORT {n}: <your message>'"
+    complete = (f"herdr agent prompt '{m}' 'FIELD REPORT {n}: COMPLETE: ...' "
+                f"&& herdr notification show 'Field agent done: {n}' --sound done")
+    identity = (f"You are field agent '{n}' in herdr pane {pane}. "
+                f"Your handler is agent '{m}'.")
+    tail = [r.format(n=n) for r in RULES_TAIL]
+
+    if fmt == "line":
+        parts = [OPENER, task]
+        if context:
+            lines = [l.strip().lstrip("- ").strip() for l in context.splitlines()]
+            parts.append("CONTEXT: " + " ".join(l for l in lines if l))
+        parts += [
+            "=== FIELD AGENT BRIEF ===",
+            identity,
+            "REPORT TO YOUR HANDLER by running this command, this is the only "
+            f"way your work reaches anyone:  {report}",
+            "Report at these four moments, not only at the end: "
+            + "; ".join(REPORT_MOMENTS) + ".",
+            f"Prefix the final one with 'FIELD REPORT {n}: COMPLETE:' and send "
+            f"it and the notification as ONE command: {complete}",
+            "Your COMPLETE report is your final message; do not write a second "
+            "summary after it.",
+            TURN_RULE,
+            *tail,
+            (f"Started {started}; budget about {budget} minutes, advisory; "
+             "time matters, so the earlier a correct result, the better."
+             if budget else
+             "Time matters, so the earlier a correct result, the better."),
+            *RULES_END,
+        ]
+        return "  ||  ".join(parts)
+
+    out = [OPENER, "", "<task>", task, "</task>", ""]
+    if context:
+        out += ["<context>", context.strip("\n"), "</context>", ""]
+    out += [
+        "<identity>", identity, "</identity>", "",
+        "<report_command>", report, "</report_command>", "",
+        "<report_moments>",
+        "Run the report command at these four moments, not only at the end:",
+        *REPORT_MOMENTS, "</report_moments>", "",
+        "<complete_prefix>", f"FIELD REPORT {n}: COMPLETE:", "</complete_prefix>", "",
+        "<time>",
+        (f"Started {started}. Budget about {budget} minutes, advisory: check "
+         f"date at each milestone and pace to finish inside it. {TIME_MATTERS}"
+         if budget else TIME_MATTERS),
+        "</time>", "",
+        "<rules>",
+        "The report command is the only way your work reaches anyone.",
+        f"Send the COMPLETE report and the notification as ONE command: {complete}",
+        "Your COMPLETE report is your final message. Do not write a second summary in the pane after it.",
+        TURN_RULE, *tail, *RULES_END,
+        "</rules>",
+    ]
+    return "\n".join(out)
+
+
+def read_text_arg(path):
+    if path == "-":
+        return sys.stdin.read()
+    with open(os.path.expanduser(path), encoding="utf-8") as f:
+        return f.read()
+
+
+def cmd_brief(args):
+    """brief <name> --handler M --task-file F [--context-file F] [--budget N]
+    [--format blocks|line] [--scoped] [--pane P] [--started HH:MM]"""
+    usage = ("usage: brief <name> --handler <your name> --task-file <path|-> "
+             "[--context-file <path>] [--budget <minutes>] "
+             "[--format blocks|line] [--scoped] [--pane <pane_id>] "
+             "[--started HH:MM]")
+    if not args or args[0].startswith("--"):
+        print(usage)
+        sys.exit(1)
+    name = args[0]
+    opts = {"--format": "blocks", "--scoped": False}
+    i = 1
+    while i < len(args):
+        if args[i] == "--scoped":
+            opts["--scoped"] = True; i += 1
+        elif args[i] in ("--handler", "--task-file", "--context-file",
+                         "--budget", "--format", "--pane", "--started") \
+                and i + 1 < len(args):
+            opts[args[i]] = args[i + 1]; i += 2
+        else:
+            print(f"unknown argument {args[i]!r}\n{usage}")
+            sys.exit(1)
+    if "--handler" not in opts or "--task-file" not in opts:
+        print(usage)
+        sys.exit(1)
+    if opts["--format"] not in ("blocks", "line"):
+        print("--format is blocks or line")
+        sys.exit(1)
+
+    pane = opts.get("--pane")
+    if not pane:
+        _, rec = find_record(load_ledger(), name, allow_pane=False)
+        if rec is None:
+            print(f"{name} is not in the ledger. Register it before you brief "
+                  "it, so a crash between the two never leaves an untracked "
+                  "agent.", file=sys.stderr)
+            sys.exit(1)
+        pane = rec.get("pane_id") or "?"
+
+    task = read_text_arg(opts["--task-file"]).strip()
+    if opts["--scoped"]:
+        task = task.rstrip(".") + "." + SCOPED
+    context = (read_text_arg(opts["--context-file"]).strip()
+               if opts.get("--context-file") else None)
+    print(render_brief(name, pane, opts["--handler"], task, context,
+                       opts.get("--budget"),
+                       opts.get("--started") or datetime.now().strftime("%H:%M"),
+                       opts["--format"]))
 
 
 # --------------------------------------------------------------------------
@@ -753,6 +918,7 @@ def cmd_close(args):
 COMMANDS = {
     "register": cmd_register, "watch": cmd_watch, "catchup": cmd_catchup,
     "ack": cmd_ack, "status": cmd_status, "note": cmd_note, "queue": cmd_queue,
+    "brief": cmd_brief,
     "audit": cmd_audit, "close": cmd_close,
 }
 

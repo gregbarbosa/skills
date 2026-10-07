@@ -13,24 +13,18 @@ last. **`field-agent`** dispatches one field agent, **`field-handler`** runs a
 room, **`herdr`** carries the semantics `herdr --skill` leaves out; the four
 are one suite.
 
-The ledger tool `field.py` lives in the `field-agent` skill's directory (one
-copy, so it cannot go stale). Find it once and call it `<agent_dir>`:
+The ledger tool `field.py` lives in the sibling `field-agent` directory (one
+copy, so it cannot go stale). Call that directory `<agent_dir>`:
 
 ```bash
-find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null
+ls ${CLAUDE_SKILL_DIR}/../field-agent/field.py
 ```
 
-Use `find`, not an `ls` glob (zsh aborts the whole command on one unmatched
-glob). Both roots matter: single-agent installs use `~/.claude/skills`,
-multi-agent installs and Codex, Copilot, Gemini and pi use `~/.agents/skills`.
-`field.py` keeps its state in `~/.claude/field/`.
-
-If the `find` returns nothing, the suite is not fully installed; tell the user
-to run the command below, then stop.
-
-```bash
-npx skills add gregbarbosa/skills -s '*' -g -y
-```
+`${CLAUDE_SKILL_DIR}` is this skill's directory (outside Claude Code, the
+directory this SKILL.md sits in). If that fails, look with `find ~/.claude
+~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null`. If both
+fail, the suite is not installed: tell the user to run
+`npx skills add gregbarbosa/skills -s '*' -g -y`, then stop.
 
 ## The rule
 
@@ -153,7 +147,8 @@ The command re-checks the safety rules and refuses when any of these is true:
 
 - The agent is `working`, `blocked` or `unknown`.
 - The result is not acknowledged.
-- The record holds a queued follow-up.
+- The record holds a queued follow-up (dispatch it, then
+  `field.py queue "<name>" --done`).
 - The working directory holds uncommitted changes.
 - The pane is the handler's own.
 
