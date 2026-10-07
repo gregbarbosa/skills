@@ -1,0 +1,9 @@
+{
+  "name": "handoff-compact",
+  "version": "0.1.0",
+  "description": "/handoff-compact writes a handoff, compacts with the usual resume instructions and resumes, in one step",
+  "author": {
+    "name": "Greg Barbosa"
+  },
+  "types": "./types/index.d.ts"
+}
