@@ -47,9 +47,8 @@ speech-to-text, which runs locally on the app's model.
      add `--overwrite` when re-running.
    - Full flag reference: `mw help transcribe`.
 
-3. **Commit only the transcript and any derived docs.** Media stays in the
-   working directory (gitignored, e.g. `*.mp3`/`*.mp4`/`*.webm`/`*.wav`/`*.m4a`)
-   or is deleted once the transcript is captured.
+3. **Keep the media out of git.** Leave it untracked or delete it once the
+   transcript exists; tell the user where the transcript landed.
 
 ## Other flags
 

@@ -6,10 +6,8 @@ description: Stand up a closed-world component and agent-rules system for a plat
 # Component System Builder
 
 Build the machinery that makes an AI agent produce consistent, polished apps
-on a given platform. The principle: **consistency comes from removing choices,
-not from model skill.** A studied reference implementation backs this method;
-if the project ships its own teardown of that reference, read it. The skill is
-self-contained without it.
+on one platform: **consistency comes from removing choices, not from model
+skill.** If the project ships a teardown of the studied reference, read it.
 
 ## Reference files (read on demand, in this skill's directory)
 
@@ -28,10 +26,9 @@ self-contained without it.
 
 ## Two modes
 
-- **Green-field**: start from the platform scaffold/template (artifact 6;
-  in the studied reference every app BEGINS as the template; the agent's job is transforming
-  it, never wiring from scratch), then build artifacts 1 to 5. Green-field has
-  no passes to cue the reference reads, so: operations.md preconditions
+- **Green-field**: start from the platform scaffold/template (artifact 6: the
+  agent transforms it, never wires from scratch), then build artifacts 1 to 5.
+  With no passes to cue the reference reads: operations.md preconditions
   BEFORE scaffolding (boot-vector verification especially); draft the
   enforcement map BEFORE artifact 1 (type surfaces are rung 4); run the
   orphan test after EACH artifact lands.
@@ -106,13 +103,12 @@ composition), **Pitfalls** (what breaks when you guess). Components consume
 semantic tokens only.
 
 ### 2. Seed-variable theming
-~10 seeds drive everything (the studied reference used `--bg`, `--bg-secondary`, `--fg`,
-`--theme-accent`, `--selection`, + support colors); every semantic token is
+~10 seeds drive everything (`--bg`, `--bg-secondary`, `--fg`, `--theme-accent`,
+`--selection`, + support colors); every semantic token is
 *computed* from seeds (`text-secondary` = fg @ 60%, `bg-control` = fg @ 10%).
 Acceptance test: a full rebrand = a ~10-line seed override per appearance.
 Before authoring seeds, capture the platform's compositing lore
-(`references/runtime-discipline.md` §7), e.g. the studied reference's light seeds needed
-~2.5× saturation because they composite at 40% over window material.
+(`references/runtime-discipline.md` §7).
 
 ### 3. Pattern-table skill (highest leverage: do not skip)
 - **The Gate**: (1) pattern in the table → you MUST use that component;
@@ -183,9 +179,8 @@ and the red-teamed rung-5 recipe: `references/enforcement.md`.
 
 ## Session continuity: the boot chain
 
-Continuity is files the harness auto-loads, chained by pointers (in the studied reference
-the harness also ran task-boundary detection and wrote the history file, a
-file-based replica puts that on the agent). **An artifact only persists if
+Continuity is files the harness auto-loads, chained by pointers; in a
+file-based replica the agent writes the history file itself. **An artifact only persists if
 it's reachable from the always-loaded file**; wiring it in is part of the step
 that creates it:
 
