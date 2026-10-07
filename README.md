@@ -142,6 +142,18 @@ git add . && git commit -m "Add my-new-skill" && git push
 
 Pushed changes are live immediately; `npx skills add` pulls `main`.
 
+### Claude Code frontmatter
+
+Beyond the portable `name` and `description`, some skills use Claude Code's own frontmatter. Whether every other agent ignores keys it does not know is untested here; claude.ai uploads accept only the portable set, so strip these before an upload.
+
+| Key | Skills | Effect in Claude Code |
+| --- | --- | --- |
+| `disable-model-invocation: true` | `backlog` | Runs only when you type `/backlog`; its description leaves the per-turn skill listing. |
+| `user-invocable: false` | `herdr` | Background knowledge: Claude loads it, the `/` menu hides it. |
+| `argument-hint` | `field-agent`, `field-handler`, `handoff`, `transcribe` | Autocomplete hint after the slash command. |
+
+In a body, `${CLAUDE_SKILL_DIR}` resolves to the skill's directory; each use says what to read it as outside Claude Code. Dynamic `` !`command` `` injection is not used. In headless `claude -p` tests (2.1.292), a plain `echo` ran under `allowed-tools: Bash(echo:*)`, but `echo "$VAR"` and a `cmd || echo fallback` did not, even pre-approved, and each left the whole skill empty; everything ran under `--allowedTools Bash`. Interactive sessions were not tested.
+
 ## Layout
 
 ```

@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: Generate a post-compact handoff prompt capturing current session state (done / in-flight / next / hard rules), save it as a new dated file outside the repo, then hand the user the /compact command to run. Use when the user says "handoff", "prep compact", "write a post-compact prompt", or context is running low mid-project.
+argument-hint: "[what the next session should focus on]"
 ---
 
 # Handoff: post-compact continuation prompt

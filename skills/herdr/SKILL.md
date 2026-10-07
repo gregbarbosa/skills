@@ -1,6 +1,7 @@
 ---
 name: herdr
-description: "The semantics herdr's own skill leaves out: agent status vocabulary, the three agent handles, the dispatch and wait idioms, naming, the permission-mode check, worktree removal order, which commands print JSON. Use with `herdr --skill` when HERDR_ENV=1."
+description: "Use when driving herdr from inside a herdr pane (HERDR_ENV=1): starting, naming, prompting or waiting on agents, moving panes, or removing worktrees. Adds what `herdr --skill` leaves out: agent status vocabulary, the three agent handles, dispatch and wait idioms, the permission-mode check, worktree removal order, which commands print JSON."
+user-invocable: false
 ---
 
 # herdr: what the bundled skill leaves out
