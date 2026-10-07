@@ -57,6 +57,8 @@ The vocabulary is borrowed from an intelligence service. **You** are the handler
 
 The ledger tool `field.py` has exactly one copy, in `skills/field-agent/`. `field-handler` and `field-audit` call it there. Do not copy it into another skill folder; a second copy goes stale the moment the first one changes.
 
+The same goes for the launch mechanics and the brief. `skills/field-agent/dispatch.md` holds the launch, startup-dialog and permission steps both dispatching skills follow, and `field.py brief` renders the reporting contract every field agent receives. `test_field.py` pins that contract's wording (`python3 -m unittest test_field.py` from `skills/field-agent/`). Each SKILL.md puts triage and standing duties first, because Claude Code re-attaches only the first 5,000 tokens of a skill after a compaction.
+
 ### `field-handler`: run a room of field agents
 
 `/field-handler` is usually not typed. It surfaces on its own when work is growing complex or splitting into independent strands, offers to open a room, and agrees the scope with you first. On agreement it opens a herdr workspace with one field agent per project. **This session becomes the handler**, it watches, steers and reports, rather than delegating to a second pane. Their reports arrive as turns here, so the room shares this conversation.

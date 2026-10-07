@@ -1,94 +1,107 @@
 ---
 name: field-handler
 description: Run a room of parallel field agents on one theme and steer them from this session. Use when work splits into independent strands that could progress in parallel, such as several projects moving toward one goal. Surfaces the option and agrees scope with the user before spawning anything. Requires a herdr pane.
+argument-hint: "<theme or goal>"
 ---
 
 # field-handler: run a room of field agents
 
-Before you use this skill, check that `HERDR_ENV=1`. If it is not `1`, tell the
-user that you do not run inside a herdr pane. Then stop.
+Check that `HERDR_ENV=1`. If it is not, tell the user you do not run inside a
+herdr pane, then stop.
 
-Run `herdr --skill` for the command surface, then read the **`herdr`** skill for
-the semantics it leaves out and the **`field-agent`** skill for the dispatch
-contract; this is its multi-agent form, on the same ledger, watch loop and
-three rules.
-
-Two directories matter below:
-
-- `<skill_dir>`: this skill's own directory (the `Base directory for this
-  skill:` path above). It holds `handler.json`.
-- `<agent_dir>`: the `field-agent` skill's directory, holding `field.py` and
-  `harnesses.json`. Find it with
-  `find ~/.claude ~/.agents -maxdepth 5 -type d -path '*skills/field-agent' 2>/dev/null`
-  (use `find`, not an `ls` glob: zsh aborts the whole command on one unmatched
-  glob). Both roots matter: single-agent installs use `~/.claude/skills`,
-  multi-agent installs and Codex, Copilot, Gemini and pi use `~/.agents/skills`.
-
-`field-agent`, `field-handler`, `field-audit` and `herdr` are one suite. If the
-`find` returns nothing, the suite is not fully installed; tell the user to run
-the command below, then stop.
+`${CLAUDE_SKILL_DIR}` is this skill's directory (outside Claude Code, the
+directory this SKILL.md sits in); it holds `handler.json`. `<agent_dir>` is
+the sibling `field-agent` directory, holding `field.py`, `harnesses.json` and
+`dispatch.md`:
 
 ```bash
-npx skills add gregbarbosa/skills -s '*' -g -y
+ls ${CLAUDE_SKILL_DIR}/../field-agent/field.py
 ```
 
-## You are the handler
+If that fails, look with `find ~/.claude ~/.agents -maxdepth 5 -type d -path
+'*skills/field-agent' 2>/dev/null`. If both fail, the suite is not installed:
+tell the user to run `npx skills add gregbarbosa/skills -s '*' -g -y`, then stop.
 
-**This session is the handler.** Each agent you start is a **field agent**. You
-open the room, steer it, and report to the user; the watching stays here.
+**This session is the handler.** Each agent you start is a field agent. You
+agree the scope, dispatch, record, watch and triage; the watching stays here.
+Field agents report by prompting you, so their reports arrive as turns in this
+session beside the user's messages.
 
-A handler does five things. All five are required.
+## After a compaction, or when an event lands
 
-1. **Agree** the scope with the user before you spawn anything.
-2. **Dispatch** each field agent with a brief that names both parties.
-3. **Record** every field agent in the ledger.
-4. **Watch** the room, so a finished agent reaches you without your attention.
-5. **Triage** each report: read the work, verify it, then act or escalate.
+Run `python3 <agent_dir>/field.py status` before you ask the user anything.
+The ledger is the memory: your context gets summarised, the file does not. If
+no `Monitor` runs the watch loop (a herdr server restart stops it), arm it
+again (Phase B step 0) and run `field.py catchup` once.
 
-A field agent reports by prompting you, so its callbacks arrive as turns in
-this session beside the user's own messages. Tell the user that in step 7.
+### Triage
 
-## The three rules
+**Triage only your roster.** The ledger and the watch loop are global to this
+machine, so events also name agents from the user's other sessions; tell the
+user in one line and leave those panes alone. A prompt to a stranger's idle
+agent injects work into a session you know nothing about.
 
-1. **Address every agent by name, never by a pane id.** A pane id changes when
-   the pane moves, and a closed pane's id resolves to nothing. A callback sent
-   to a stale pane id goes nowhere.
-2. **Every brief carries the identity block.** A field agent cannot report if
-   it does not know your name and the exact command that reaches you.
-3. **The callback is best effort. The watch loop is the guarantee.** A field
-   agent that crashes sends no callback.
+Read the work first: `herdr agent read "<agent_name>" --source recent --lines 80`.
 
-## Two phases
+| Event | What you do |
+|-------|-------------|
+| `COMPLETE` / `[FIELD] DONE` | Verify the claim against the files it names; run the build or the tests when it touched code. Do not trust the summary. Tell the user the verdict and send a `PushNotification` (the agent already raised the desktop notification). |
+| `[FIELD] BLOCKED` | Read the pane. Answer it yourself when the brief makes the answer unambiguous. Escalate only a decision that is genuinely the user's. |
+| `[FIELD] IDLE` | It stopped without a report. Read its checklist in `~/.claude/field/checklists/<agent_name>.md`: an unticked item is open work, whatever the last message says. Finished quietly: triage as done. Work open, no blocker stated: prompt "Still open: <items>. Continue. If one is blocked, report BLOCKED and say what blocks it." After two or three nudges on the same task, tell the user it is stuck. |
+| `[FIELD] GONE` | The pane closed unread. Check the branch and the files, then report what was lost. |
+| `MILESTONE` / `START` | Note it. Reply only to correct the agent. |
 
-- **Phase A, offer and agree.** Name the independent strands, propose a scope,
-  and discuss. Spawn nothing.
-- **Phase B, open the room.** Starts only on the user's explicit go.
+Then, for a settled agent:
 
-If this skill surfaced on its own, you are in Phase A.
+1. **Queued follow-up.** If `status` shows `queued:` under the agent, dispatch
+   it now without waiting for the user (a fresh field agent for a new task, or
+   `herdr agent prompt "<agent_name>" "<follow-up>"` to continue the same one),
+   then clear it: `python3 <agent_dir>/field.py queue "<agent_name>" --done`.
+   `field-audit` refuses to close an agent that still holds one.
+2. **Acknowledge**:
+   `python3 <agent_dir>/field.py ack "<agent_name>" "<verdict; files; test result>"`
 
-## Phase A: offer and agree
+### Standing duties
 
-1. **Offer.** In one or two sentences, name the independent strands you see.
-   Offer to run them in parallel panes that you steer. Example: "This splits
-   into three independent pieces. I can run a pane per piece and work them from
-   here. Do you want that?"
-2. **Propose a roster.** Map the goal to concrete projects. Use these sources
-   in order:
-   - The ledger: `python3 <agent_dir>/field.py status`. This shows work already
-     dispatched, with its pane, branch and verdict.
-   - Live panes: `herdr agent list` and `herdr workspace list`. The
-     `terminal_title_stripped` of each agent says what it does now.
-   - Dated `tries/` subdirectories and branches whose names match the goal.
-   - The agent brain, for project relationships.
+- **Address agents by name:** `herdr agent prompt <agent_name> "<one concrete
+  instruction>"`. A prompt to a `working` agent queues behind its current turn.
+- **Wait between events.** Act when an agent reports, a `[FIELD]` event lands,
+  or the user asks. `herdr agent wait` blocks your turn; keep it for a short,
+  known wait during a launch.
+- **Text in an agent's input box** is usually Claude Code's prompt suggestion,
+  not a stuck submission. Leave it.
 
-   Present the roster as a short list: each project, its path and branch, and
-   the one job that field agent owns.
-3. **Discuss.** Add or drop projects. Adjust each job. Spawn nothing yet.
-4. **Get an explicit go.** Then start Phase B.
+### Teardown
+
+The room closes through the audit, never on your own judgment: an unread pane
+holds work nothing else records.
+
+1. Run the **`field-audit`** skill. It reads, verifies, and closes only the
+   panes that are provably finished. It clears a moved worktree checkout with
+   `git worktree remove <path>` once the branch is merged or the user says so.
+2. Confirm with the user before you close a pane whose agent is `working`.
+3. Close the room tab with `herdr tab close <tab_id>`. The user's workspace
+   stays open.
+
+## Phase A: offer and agree (spawn nothing)
+
+If this skill surfaced on its own, you are here.
+
+1. **Offer.** In one or two sentences, name the independent strands and offer
+   to run them in parallel panes you steer.
+2. **Propose a roster** from, in order: `python3 <agent_dir>/field.py status`
+   (work already dispatched); `herdr agent list` and `herdr workspace list`
+   (each agent's `terminal_title_stripped` says what it does now); branches and
+   dated directories matching the goal; the agent brain. List each project, its
+   path and branch, and the one job its field agent owns.
+3. **Discuss.** Add or drop projects, adjust each job.
+4. **Get an explicit go.** Then Phase B.
 
 ## Phase B: open the room
 
-### Step 0: claim your own name and arm the watch loop
+Read the **`herdr`** skill and run `herdr --skill` first.
+
+### Step 0: Claim your name and arm the watch loop
 
 ```bash
 herdr pane current --current | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["pane_id"])'
@@ -96,12 +109,8 @@ herdr agent list | python3 -c 'import sys,json;print([a.get("name") for a in jso
 herdr agent rename "<self_pane>" m
 ```
 
-Call the pane id `<self_pane>` and the name `m`; if a live agent already holds
-`m`, use `m-<short-theme>` everywhere below. Read the pane id live
-(`$HERDR_PANE_ID` goes stale after a pane move), and read names with
-`.get("name")`: an unnamed agent record has no `name` key.
-
-**Arm the watch loop now, before you spawn anything.** Use the `Monitor` tool:
+If a live agent holds `m`, use `m-<short-theme>` everywhere. Read the pane id
+live (`$HERDR_PANE_ID` goes stale after a move). Then, before you spawn:
 
 ```
 Monitor(
@@ -111,78 +120,50 @@ Monitor(
 )
 ```
 
-One watch loop per machine: two share one state file and print every event
-twice. If `field-agent` already armed one in this session, keep it.
+One watch loop per machine; if `field-agent` already armed one, keep it. Run
+`python3 <agent_dir>/field.py catchup` once.
 
-Then run `python3 <agent_dir>/field.py catchup` once, to surface an agent that
-settled before you armed the loop.
+### Step 1: Finalize the roster
 
-### Step 1: finalize the roster
+A list of `{ project_name, agent_name, abs_path, branch, task }` plus the
+shared one-line `theme`. `agent_name` is a kebab slug matching
+`[a-z][a-z0-9_-]{0,31}`, under 24 characters, unique among live agents.
 
-Build a list of `{ project_name, agent_name, abs_path, branch, task }`, plus
-the shared `theme` (one line). `agent_name` is a short kebab slug of the
-project. herdr requires `[a-z][a-z0-9_-]{0,31}`; keep it under 24 characters.
-Names must be unique among live agents; check `herdr agent list`. On a name
-conflict at launch, retry once with a numeric suffix.
+### Step 2: Read the config
 
-### Step 2: read the config
+`${CLAUDE_SKILL_DIR}/handler.json`: `agent.command`, `agent.model_flag`,
+`model_floor`, `layout_threshold`. If it is missing or invalid, tell the user
+and use `{"agent":{"command":"claude","model_flag":"--model sonnet"},"model_floor":"sonnet","layout_threshold":4}`.
 
-Read `handler.json` in `<skill_dir>`. Fields: `agent.command`,
-`agent.model_flag`, `model_floor`, `layout_threshold`. If the file is missing
-or is not valid JSON, use this default and tell the user:
+**`model_floor` is Sonnet:** Haiku 4.5 ignores `--permission-mode auto` and
+stops at its first tool call. If the user asks for Haiku, say so and let them
+decide. For a per-agent harness the user named, read `command`, `kind`,
+`auto_flag` and `brief_format` from `<agent_dir>/harnesses.json`; `command`
+equal to `kind` is canonical, otherwise a wrapper.
 
-```json
-{ "agent": {"command":"claude","model_flag":"--model sonnet"}, "model_floor": "sonnet", "layout_threshold": 4 }
-```
+### Step 3: Decide isolation per agent
 
-`layout_threshold` is how many field agents still share one tab: at or below
-it the user sees the whole room at a glance, above it a grid makes every pane
-unreadable, so each agent gets its own tab.
+An agent needs a worktree when BOTH hold: another roster entry shares its repo
+(or its branch differs from that checkout's), and it will commit or change
+branch. A shared-checkout agent that runs `git checkout -b` switches every
+session in that directory, this one included. Read-only agents in one repo
+need no worktree; say in their task that they leave git alone.
 
-**`model_floor` is Sonnet.** Haiku 4.5 ignores `--permission-mode auto`, so a
-Haiku field agent stops at its first tool call and shows `blocked` with no
-visible cause. If the user asks for Haiku, say this and let them decide.
-
-For a per-agent harness override that the user named, resolve `command`, `kind`
-and `auto_flag` from `harnesses.json` in `<agent_dir>`. An entry whose
-`command` equals its `kind` is **canonical**. An entry whose `command` differs
-(glm, ds) is a **wrapper** and takes the fallback path in step 5. Read
-`brief_format` from the same entry (`blocks` or `line`; missing means `blocks`)
-for step 6.
-
-### Step 3: decide isolation per field agent
-
-A field agent needs a git worktree when BOTH of these are true:
-
-1. Another roster entry shares its repo, or its `branch` differs from what that
-   checkout has now.
-2. It will commit, or change branch.
-
-A shared-checkout agent that runs `git checkout -b` switches every session in
-that directory, including this one. Two read-only agents in one repo need no
-worktree; say in each task that the agent leaves git alone.
-
-### Step 4: create the room, in the CURRENT workspace
-
-The room lives in the workspace the user is already in: you stay in your tab,
-the field agents get one tab beside it, and the user switches one tab to see
-the room and back to talk to you. Read your workspace live
-(`$HERDR_WORKSPACE_ID` goes stale):
+### Step 4: Create the room in the current workspace
 
 ```bash
 WS=$(herdr pane current --current | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"]["workspace_id"])')
 ```
 
-**N <= `layout_threshold`: ONE tab, one pane per agent.** Create the tab with
-the first agent's directory, because its root pane becomes that agent's pane:
+**N <= `layout_threshold`: one tab, one pane per agent.** The tab's root pane
+is agent 1:
 
 ```bash
 herdr tab create --workspace "$WS" --label "field agents" --cwd "<abs_path_1>" --no-focus
 ```
 
-Parse `.result.tab.tab_id` and `.result.root_pane.pane_id`. That root pane is
-agent 1. Then split for the rest, splitting a wide pane RIGHT and a tall one
-DOWN, so the grid stays readable:
+Parse `.result.tab.tab_id` and `.result.root_pane.pane_id`, then split a wide
+pane right and a tall one down (parse `.result.pane.pane_id` from each):
 
 | Agent | Split |
 |-------|-------|
@@ -190,307 +171,49 @@ DOWN, so the grid stays readable:
 | 3 | `herdr pane split "<pane_1>" --direction down --cwd "<abs_path_3>" --no-focus` |
 | 4 | `herdr pane split "<pane_2>" --direction down --cwd "<abs_path_4>" --no-focus` |
 
-Parse `.result.pane.pane_id` from each. Four agents give a 2x2 grid; three
-give a split left column beside a full-height right column.
+**N > `layout_threshold`: one tab per agent, still in `$WS`:**
+`herdr tab create --workspace "$WS" --label "<project>" --cwd "<abs_path>" --no-focus`.
 
-**N > `layout_threshold`: one tab per agent, still in `$WS`.** Above four,
-a grid gives each agent an unusably narrow column, so trade the single glance
-for readable panes:
-
-```bash
-herdr tab create --workspace "$WS" --label "<project>" --cwd "<abs_path>" --no-focus
-```
-
-Parse `.result.root_pane.pane_id`.
-
-**Worktree agents take two commands.** `worktree create` always opens its own
-workspace (its `--workspace` flag names the source repo, not a destination),
-so create the checkout, then move its root pane into the room:
+**Worktree agents.** `worktree create` always opens its own workspace, so
+create the checkout, then move its root pane into the room:
 
 ```bash
 herdr worktree create --cwd "<repo>" --branch "<branch>" --label "<project>" --no-focus
 herdr pane move "<root_pane>" --tab "<tab_id>" --split <right|down> --target-pane "<pane_n>" --no-focus
 ```
 
-Parse `.result.root_pane.pane_id` and `.result.worktree.path` from the create.
-Pick the split and target from the table above, as for any other agent. Above
-`layout_threshold`, give it its own tab instead:
-`herdr pane move "<root_pane>" --new-tab --workspace "$WS" --label "<project>" --no-focus`.
+Above the threshold use `--new-tab --workspace "$WS" --label "<project>"`
+instead. The move gives the pane a NEW id (`.result.move_result.pane.pane_id`);
+use it from here on. Put absolute paths (`.result.worktree.path`) in that
+agent's task.
 
-The move gives the pane a NEW id: read `.result.move_result.pane.pane_id` and
-use that one from here on. The temporary workspace closes itself. Put absolute
-paths in that agent's task, since its checkout is not the repo the user is
-looking at. A moved checkout has no workspace, so `herdr worktree remove`
-cannot clear it; `field-audit` uses `git worktree remove <path>` for these.
+### Steps 5 and 6: Launch, register, brief
 
-### Step 5: launch and register every field agent
+Read `<agent_dir>/dispatch.md` now and follow it for every agent: launch with
+`handler.json`'s `model_flag`, clear the dialogs, check the permission mode,
+and register each one. Launch and register every agent before you brief any,
+then brief each with `field.py brief --scoped`.
 
-Launch and register every field agent before you prompt any of them.
+### Step 7: Announce, then work the room
 
-**Canonical harness:**
+In one line: which agents are up, their models, the tab that holds them, which
+work in a worktree (branch and path), and that the watch loop is armed. Tell the
+user this thread will now share turns with the agents' reports, and offer
+`/loop` for hands-off running.
 
-```bash
-herdr agent start "<agent_name>" --kind <kind> --pane "<pane_id>" -- <model_flag words> <auto_flag words>
-```
+Then run one assessment pass: `herdr agent list` against the roster. A roster
+agent missing from the list is not gone (detection lags on a fresh worktree
+pane); `herdr pane read` its pane. Read only agents that look stuck, off-theme
+or missing (`herdr agent read <agent_name> --source recent-unwrapped --lines
+40`) and give the user a short roll-up.
 
-`agent start` needs a pane sitting at a shell prompt (step 4 made it) and
-times out after 30 seconds. A startup dialog returns `agent_not_ready` with
-the name still usable for `agent read` and `agent send-keys`: clear the
-dialog, then continue.
+## Failure modes
 
-**Wrapper harness** (glm, ds): run it, wait for herdr to detect it, wait for
-readiness, then name it (Rule 1):
-
-```bash
-herdr pane run "<pane_id>" "<command> <auto_flag>"
-
-# pane run returns before the TUI draws; without this loop, agent wait fails
-# at once with agent_not_found and the agent is left running and unnamed.
-for i in $(seq 1 60); do
-  A=$(herdr pane get "<pane_id>" | python3 -c 'import sys,json;print(json.load(sys.stdin)["result"]["pane"].get("agent") or "")')
-  [ -n "$A" ] && break
-  sleep 1
-done
-[ -z "$A" ] && echo "herdr never detected an agent in <pane_id>" && exit 1
-
-herdr agent wait "<pane_id>" --until idle --timeout 60000
-herdr agent rename "<pane_id>" "<agent_name>"
-```
-
-**Clear the startup dialogs before you prompt.** Read the pane
-(`herdr pane read "<pane_id>" --source visible --lines 30`), find the line
-marked `❯`, and move to the option you want with `Down` or `Up` before
-`Enter`: the marked option is the default, and on these dialogs the default is
-the wrong one. Read the pane again after each keypress; option order changes
-between Claude Code versions.
-
-- **Folder trust** ("Is this a project you created or one you trust?"): the
-  default is "No, exit", which quits the agent. `Down`, then `Enter`. It does
-  not always appear.
-- **Usage credits** ("Fable 5 now uses usage credits"): the default silently
-  switches the model to Sonnet. To keep the model you asked for, `Down`, then
-  `Enter`.
-- **"New MCP servers found"**: `Esc`.
-
-`Enter` also submits whatever sits in the input box; after clearing a dialog,
-read the pane and check what the agent is now working on.
-
-**Check the permission mode.** The status line is the evidence:
-
-```bash
-herdr pane read "<pane_id>" --source visible --lines 3
-```
-
-`⏵⏵ auto mode on` means the flag took; `⏸ manual mode on` means the agent will
-stop at its first tool call (the Haiku case from step 2).
-
-A shell error in the pane is a failed launch: tell the user and stop.
-
-**Register the agent before you prompt it**, so a crash between the two never
-leaves an untracked agent:
-
-```bash
-python3 <agent_dir>/field.py register "<agent_name>" "<pane_id>" "<harness>" \
-  "<one-line task summary>" --branch "<branch or omit>" --cwd "<abs_path>"
-```
-
-### Step 6: send each field agent its task
-
-One prompt, two halves: the task with everything the agent needs, then the
-reporting contract. herdr delivers a multi-line prompt intact (bracketed paste;
-the pane shows it collapsed as `[Pasted text +N lines]`, the transcript holds it).
-Read `brief_format` from the harness entry: `blocks` is the form below, `line` is
-the one-line fallback further down.
-
-Keep the opener first. It is what tells the agent the message is a brief; without
-it Sonnet 5 reads the identity block as an injection and goes silent (5 of 5 runs).
-
-Fill the context block. A field agent starts with an empty context window, so give
-it what you would tell a new teammate: files to read first (absolute paths), facts
-already established, where credentials come from (never the value), and the
-conventions that apply. Delete any line you have nothing for.
-
-Fill the time block when you can estimate the task. Set the budget somewhat above the time you want spent: agents pace to finish inside it and usually finish early. Without an estimate, keep only the "Time matters" sentence. The budget is advisory, so keep your own timeout for a hard stop.
-
-Write the brief in a quoted heredoc so nothing needs escaping. Single-quote the
-inner commands.
-
-```bash
-BRIEF=$(cat <<'EOF'
-Field agent brief from your handler.
-
-<task>
-<task>. Scope and read first; flag any irreversible change before you make it.
-</task>
-
-<context>
-Read these first, in this order:
-- <absolute path to the CLAUDE.md or AGENTS.md of the repo the task concerns>
-- <absolute path to the README, spec, plan, or prior deliverable the task builds on>
-Facts you can rely on:
-- <a decision, number, or gotcha already established, one per line>
-Credentials and access:
-- <where a key or token comes from: a path or a command, never the value>
-Conventions:
-- <no em-dashes; do not git add, commit, or change branch; the rules of this repo>
-</context>
-
-<identity>
-You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.
-</identity>
-
-<report_command>
-herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'
-</report_command>
-
-<report_moments>
-Run the report command at these four moments, not only at the end:
-(1) START, one line when you understand the task and begin
-(2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work
-(3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question
-(4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result
-</report_moments>
-
-<complete_prefix>
-FIELD REPORT <agent_name>: COMPLETE:
-</complete_prefix>
-
-<time>
-Started <HH:MM from date>. Budget about <N> minutes, advisory: check date at each milestone and pace to finish inside it. Time matters here: do not spend time that can be avoided, and the earlier a correct result is obtained, the better.
-</time>
-
-<rules>
-The report command is the only way your work reaches anyone.
-Send the COMPLETE report and the notification as ONE command: herdr agent prompt 'm' 'FIELD REPORT <agent_name>: COMPLETE: ...' && herdr notification show 'Field agent done: <agent_name>' --sound done
-Your COMPLETE report is your final message. Do not write a second summary in the pane after it.
-Your turn ends only with a COMPLETE or a BLOCKED report. Do not stop on a summary that announces the next step, an offer to continue unless told otherwise, a list of decisions that block nothing, or a milestone that feels like a good place to report. Send the MILESTONE report in the same message as your next tool call and keep working. Before a risky or irreversible action, report BLOCKED and wait.
-Before you change anything, read the files that the task can depend on, including files that this brief does not name.
-Keep the parts of your task as a checklist in ~/.claude/field/checklists/<agent_name>.md (create it at START). Tick each item when it is done. Send COMPLETE only when every item is ticked; otherwise send BLOCKED and name the open items.
-If your report command fails, retry it twice before you continue.
-Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.
-Do not ask the human directly. Route every question through your handler.
-</rules>
-EOF
-)
-herdr agent prompt "<agent_name>" "$BRIEF" --wait --until working --timeout 15000
-```
-
-Replace `m` with your actual name from step 0.
-
-**One-line form (`brief_format: line`).** Same content, ` || ` between parts, opener first.
-
-```bash
-herdr agent prompt "<agent_name>" "Field agent brief from your handler.  ||  <task>. Scope and read first; flag any irreversible change before you make it.  ||  CONTEXT, read these first: <absolute paths>. Facts you can rely on: <facts>. Credentials: <where they come from, never the value>. Conventions: <rules>.  ||  === FIELD AGENT BRIEF ===  ||  You are field agent '<agent_name>' in herdr pane <pane_id>. Your handler is agent 'm'.  ||  REPORT TO YOUR HANDLER by running this command, this is the only way your work reaches anyone:  herdr agent prompt 'm' 'FIELD REPORT <agent_name>: <your message>'  ||  Report at these four moments, not only at the end: (1) START, one line when you understand the task and begin; (2) MILESTONE, one line each time you finish a meaningful unit, or roughly every 15 minutes of work; (3) BLOCKED, immediately if you need a decision, a credential, or an answer, and state the exact question; (4) COMPLETE, when you finish, with the verdict, every file path you changed, the branch name, and the test or build result.  ||  Prefix the final one with 'FIELD REPORT <agent_name>: COMPLETE:' and send it and the notification as ONE command: herdr agent prompt 'm' 'FIELD REPORT <agent_name>: COMPLETE: ...' && herdr notification show 'Field agent done: <agent_name>' --sound done  ||  Your COMPLETE report is your final message; do not write a second summary after it.  ||  Your turn ends only with a COMPLETE or a BLOCKED report. Do not stop on a summary that announces the next step, an offer to continue unless told otherwise, a list of decisions that block nothing, or a milestone that feels like a good place to report. Send the MILESTONE report in the same message as your next tool call and keep working. Before a risky or irreversible action, report BLOCKED and wait.  ||  Before you change anything, read the files that the task can depend on, including files that this brief does not name.  ||  Keep the parts of your task as a checklist in ~/.claude/field/checklists/<agent_name>.md (create it at START). Tick each item when it is done. Send COMPLETE only when every item is ticked; otherwise send BLOCKED and name the open items.  ||  Started <HH:MM>; budget about <N> minutes, advisory; time matters, so the earlier a correct result, the better.  ||  If your report command fails, retry it twice before you continue.  ||  Report what you actually found. If the task rests on a wrong assumption, say so instead of working around it.  ||  Do not ask the human directly. Route every question through your handler." --wait --until working --timeout 15000
-```
-
-**How to read the result.** `--wait --until working` returns as soon as the
-agent is working, at once if it already was.
-
-| Outcome | Meaning | What you do |
-|---------|---------|-------------|
-| Exit 0, `agent_status` is `working` | The turn started. | Go to the next agent. |
-| Exit 0, `agent_status` is `done` or `idle` | A short turn finished already. | Read the pane. |
-| `agent_blocked` | A dialog was up. herdr sent NOTHING. | Clear the dialog, then prompt again. |
-| `agent_prompt_stalled` | herdr saw no activity after it submitted. | Read the pane. |
-
-On a stall, read the pane. A prompt sent to a busy claude-kind agent queues
-for its next turn and is not stuck. Input-box text is stuck only when it matches
-what you just sent; then send `herdr agent send-keys "<agent_name>" Enter`, at
-most 3 times. If it never submits, tell the user rather than assuming it ran.
-
-### Step 7: announce, then work the room
-
-State in one line which field agents are up, their models, the TAB that holds
-them, which agents work in a worktree (branch and checkout path), and that the
-watch loop is armed.
-
-Then tell the user that this session now works the room, so their own
-conversation here will share turns with the agents' reports. Offer `/loop` if
-they want it to run hands-off.
-
-Example: "Room up in tab 'field agents' beside this one: 3 Sonnet field agents
-(a, b, c); c works in a worktree on feat/c under ~/.herdr/worktrees. Watch
-loop armed. I will work the room from here, so this thread will fill with
-their reports; switch to that tab to watch them, or leave it to me."
-
----
-
-## Your standing duties while the room runs
-
-**Run one assessment pass now.** `herdr agent list` gives every agent's
-`agent_status` and live `terminal_title_stripped`; cross-check it against the
-roster. A roster agent missing from the list is not gone (detection lags on a
-fresh worktree pane): `herdr pane read` its pane directly. Read only the agents
-that look stuck, off-theme or missing, with
-`herdr agent read <agent_name> --source recent-unwrapped --lines 40`, and give
-the user a short roll-up.
-
-**Address agents by name:** `herdr agent prompt <agent_name> "<one concrete
-instruction>"`. Prompt an agent whose status is `idle`, `blocked` or `done`; a
-prompt to a `working` agent queues behind its current turn.
-
-**Triage only your roster.** The ledger and the watch loop are global to this
-machine, so `catchup` and `[FIELD]` events will name agents from the user's
-other sessions; for those, tell the user in one line and leave the pane alone.
-A prompt to a stranger's idle agent injects work into a session you know
-nothing about.
-
-**Triage every event before you acknowledge it.**
-
-| Event | What you do |
-|-------|-------------|
-| `COMPLETE` / `[FIELD] DONE` | Read the pane. Verify the claim: check the files it names, and run the build or the tests when it touched code. Do not trust the summary. Then report and ack. |
-| `[FIELD] BLOCKED` | Read the pane. Answer it yourself when the brief makes the answer unambiguous. Escalate to the user only when the decision is genuinely theirs. |
-| `[FIELD] IDLE` | The agent stopped without a report. Read the pane. Read its checklist in `~/.claude/field/checklists/`: an unticked item is open work, whatever the last message says. If it finished quietly, triage it as done. If work is still open and no blocker is stated, prompt it naming the open items: "Still open: <items>. Continue. If one is blocked, report BLOCKED and say what blocks it." Stop after two or three such nudges on the same task and tell the user it is stuck. |
-| `[FIELD] GONE` | The pane closed before you read it. The work can still exist on a branch or on disk. Check, then report what was lost. |
-| `MILESTONE` / `START` | Note it. Reply only to correct the agent. |
-
-**After you verify an agent, record it and tell the user:**
-
-```bash
-python3 <agent_dir>/field.py ack "<agent_name>" "<verdict; files; test result>"
-herdr notification show "Field agent done: <agent_name>" --sound done
-```
-
-**The ledger is the memory.** Write the task, the branch and the verdict into
-it; your context will be summarised, the file will not. After a compaction, run
-`python3 <agent_dir>/field.py status` before you ask the user anything.
-
-**Text in an agent's input box is usually Claude Code's prompt suggestion**, not
-a stuck submission or a user draft. Leave it.
-
-**After the first pass, wait.** Act when an agent reports, when a `[FIELD]`
-event lands, or when the user asks. `herdr agent wait` blocks your turn; it is
-for a short, known wait during a launch.
-
----
-
-## Teardown
-
-An unread pane holds work that nothing else records, so the room closes
-through the audit, not on your own judgment.
-
-1. Run the **`field-audit`** skill. It reads each result, verifies it, reports
-   a verdict, and closes only the panes that are provably finished.
-2. Confirm with the user before you close a pane whose agent is still
-   `working`.
-3. Close the field-agent tab with `herdr tab close <tab_id>`, or single panes
-   with `herdr pane close`. The room lives in the user's own workspace, which
-   stays open.
-4. A worktree agent moved into the room has no workspace of its own, so
-   `field-audit` clears its checkout with `git worktree remove <path>` after
-   the branch is merged or the user says so. The branch survives; delete it
-   in the source repo when it is no longer needed.
-
-## Failure modes and their fix
-
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| A `COMPLETE` report never arrives | The agent crashed before its final step | The watch loop reports `GONE` or `IDLE`. Read the pane. |
-| A callback reaches nothing | The brief carried a pane id, and the pane moved or closed | Address the handler by name. Rule 1. |
-| Duplicate `[FIELD]` lines | Two watch loops run at once | Keep one. Stop the second `Monitor`. |
-| `agent list` shows an unnamed agent | A wrapper harness launched without a rename | `herdr agent rename <pane> <name>`, then register it. |
-| A prompt stalls in the input box | Bracketed paste, or a startup dialog | Read the pane. Clear the dialog. Send Enter. |
-| The room finished hours ago, unread | No watch loop was armed | Arm it in step 0. Run `catchup` once. |
-| No events after a herdr server restart | The restart stopped the `Monitor` that ran the watch loop | Arm it again in step 0, then run `catchup` once. |
-| `agent start` returns `agent_not_ready` | A startup dialog blocked the agent | The name still works. Read the pane, clear the dialog, continue. |
+| Symptom | Fix |
+|---------|-----|
+| A `COMPLETE` never arrives | The agent crashed; the watch loop reports `GONE` or `IDLE`. Read the pane. |
+| Duplicate `[FIELD]` lines | Two watch loops. Stop the second `Monitor`. |
+| The room finished hours ago, unread | No watch loop. Arm it (step 0), run `catchup`. |
+| `agent start` returns `agent_not_ready` | A startup dialog. The name still works; clear it (`dispatch.md`). |
+| `agent list` shows an unnamed agent | A wrapper launched without a rename: `herdr agent rename <pane> <name>`, then register it. |
+| `field-audit` refuses a close: queued follow-up | Dispatch it, then `field.py queue "<agent_name>" --done`. |
