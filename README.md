@@ -128,7 +128,7 @@ claude plugin update handoff-compact@gregbarbosa
 
 then restart Claude Code. The update compares versions, so a change merged without a `version` bump in the mod's `plugin.json` never reaches an installed copy.
 
-To work on a mod, run it from your clone with `claude --plugin-dir mods/<name>`, then `claude plugin validate mods/<name>` and `claude plugin test mods/<name>` before opening a PR. Every PR that changes a mod bumps its `version`.
+To work on a mod, run it from your clone with `claude --plugin-dir mods/<name>`, then `claude plugin validate mods/<name>` and `claude plugin test mods/<name>` before opening a PR. Every PR that changes a mod bumps its `version`. `python3 -m unittest discover tests` checks what a mod shares with a skill (`handoff-compact`'s resume text matches the `handoff` skill's `/compact` line).
 
 ## Add or modify a skill
 
