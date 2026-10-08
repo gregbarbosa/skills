@@ -14,7 +14,7 @@ export const baseName = (path: string) => path.split('/').pop() ?? path
 
 // The same text the handoff skill tells the user to paste after /compact.
 export const resumeText = (path: string) =>
-  `Read ${path}. Run its Verify first checks; if they pass, set its status to consumed, create one task per IN-FLIGHT item with the task tool, and resume from the first task; if not, report the drift and wait.`
+  `Read ${path}. Run its Verify first checks; if they pass, set its status to consumed and resume from the first unchecked IN-FLIGHT item; if not, report the drift and wait.`
 
 export const askText = (notes: string) =>
   [

@@ -11,7 +11,7 @@ test('knows a handoff file from other writes', () => {
 
 test('the resume text matches what the user pastes after /compact', () => {
   expect(resumeText(FILE)).toBe(
-    `Read ${FILE}. Run its Verify first checks; if they pass, set its status to consumed, create one task per IN-FLIGHT item with the task tool, and resume from the first task; if not, report the drift and wait.`,
+    `Read ${FILE}. Run its Verify first checks; if they pass, set its status to consumed and resume from the first unchecked IN-FLIGHT item; if not, report the drift and wait.`,
   )
   expect(askText('focus on the SEO project')).toContain('focus on the SEO project')
 })
