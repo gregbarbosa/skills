@@ -4,10 +4,12 @@ export type Pending = {
   autoAt: number | null
   // An automated turn got in the way; the countdown starts again when that turn ends.
   retry?: boolean
+  // This host lets no mod compact (the desktop app, an SDK host); the user runs /compact.
+  manual?: boolean
 }
 
 declare module 'claude-code' {
   interface PluginState {
-    'handoff-compact': { isArmed: boolean; pending: Pending | null; now: number }
+    'handoff-compact': { isArmed: boolean; pending: Pending | null; now: number; noCompact: boolean }
   }
 }
