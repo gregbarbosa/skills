@@ -20,6 +20,8 @@ const AUTOMATED_ORIGINS = new Set([
 const isArmed = atom({ plugin: 'handoff-compact', key: 'isArmed' } as const, false)
 const pending = atom({ plugin: 'handoff-compact', key: 'pending' } as const, null)
 const now = atom({ plugin: 'handoff-compact', key: 'now' } as const, 0)
+// Set once this session's host refuses a plugin compact, so later runs skip the countdown.
+const noCompact = atom({ plugin: 'handoff-compact', key: 'noCompact' } as const, false)
 
 export const isHandoffFile = (path: string) => /\/\.claude\/handoffs\/.+\.md$/.test(path)
 
@@ -30,6 +32,11 @@ export const baseName = (path: string) => path.split('/').pop() ?? path
 // The same text the handoff skill tells the user to paste after /compact.
 export const resumeText = (path: string) =>
   `Read ${path}. Run its Verify first checks; if they pass, set its status to consumed and resume from the first unchecked IN-FLIGHT item; if not, report the drift and wait.`
+
+export const compactLine = (path: string) => `/compact ${resumeText(path)}`
+
+// The engine's refusal where the host binds no compaction for plugins (the desktop app, `claude -p`).
+export const isUnavailable = (error: unknown) => /not available/i.test(String(error))
 
 export const askText = (notes: string) =>
   [
@@ -72,12 +79,29 @@ async function compactNow($: EngineInterface) {
     await update($, pending, () => null)
     void $.prompt.submit({ text: resumeText(held.path) })
   } catch (error) {
+    if (isUnavailable(error)) {
+      await handToUser($, held)
+      return
+    }
     // Most often a turn is running: an automated message arrived during the countdown.
     await update($, pending, () => ({ ...held, autoAt: null, retry: true }))
     $.ui.toast(`Could not compact yet (${String(error).slice(0, 80)}). The countdown starts again when the next turn ends.`, {
       timeoutMs: 8000,
     })
   }
+}
+
+// The user's own /compact then raises session.compact, and the hook below sends the resume prompt.
+async function handToUser($: EngineInterface, held: Pending) {
+  await update($, noCompact, () => true)
+  await update($, pending, () => ({ ...held, autoAt: null, retry: false, manual: true }))
+  const { isFilled } = await $.prompt.fill({ text: compactLine(held.path) }).catch(() => ({ isFilled: false }))
+  $.ui.toast(
+    isFilled
+      ? 'This app does not let mods compact. The /compact command is in the prompt box: press Enter.'
+      : `This app does not let mods compact. Run: ${compactLine(held.path)}`,
+    { timeoutMs: 15000 },
+  )
 }
 
 export const register: Register = on => {
@@ -131,6 +155,16 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('session.compact', async ($, e, next) => {
+    const done = await next(e)
+    const held = await read($, pending)
+    if (held?.manual && !('skip' in done && done.skip)) {
+      await update($, pending, () => null)
+      void $.prompt.submit({ text: resumeText(held.path) })
+    }
+    return done
+  })
+
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     if (e.agentId) return done
@@ -146,6 +180,10 @@ export const register: Register = on => {
     // An interrupted or failed turn waits for a press: the user may want to look first.
     if (e.reason !== 'answer') {
       await update($, pending, () => ({ ...held, autoAt: null, retry: false }))
+      return done
+    }
+    if (await read($, noCompact)) {
+      await handToUser($, held)
       return done
     }
     await startCountdown($, held)
@@ -165,9 +203,9 @@ export const register: Register = on => {
           Handoff saved:{' '}
         </Text>
         <Text>{baseName(held.path)}</Text>
-        <Text dimColor>{left === null ? '  ' : `  compacting in ${left}s  `}</Text>
-        <Button key="now" label="Compact now" onPress={() => void compactNow($)} />
-        <Text> </Text>
+        <Text dimColor>{held.manual ? '  run /compact to continue  ' : left === null ? '  ' : `  compacting in ${left}s  `}</Text>
+        {held.manual ? null : <Button key="now" label="Compact now" onPress={() => void compactNow($)} />}
+        {held.manual ? null : <Text> </Text>}
         <Button
           key="drop"
           label={left === null ? 'Dismiss' : 'Cancel'}

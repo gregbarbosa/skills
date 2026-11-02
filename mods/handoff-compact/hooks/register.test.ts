@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { askText, isHandoffFile, isUserPrompt, resumeText } from './register'
+import { askText, compactLine, isHandoffFile, isUnavailable, isUserPrompt, resumeText } from './register'
 
 const FILE = '/home/user/.claude/handoffs/my-repo/2026-10-02-1530-mods.md'
 
@@ -176,4 +176,63 @@ test('a Remote Control message counts as the user and stops the countdown', asyn
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer' } as never)
   await clock.advance(15_000)
   expect(compacted.length).toBe(0)
+})
+
+test('knows the refusal of a host that lets no mod compact', () => {
+  expect(
+    isUnavailable(new Error('HooksError: handoff-compact: $.session.compact: not available in a headless (-p) run')),
+  ).toBe(true)
+  expect(isUnavailable(new Error('a turn is running'))).toBe(false)
+})
+
+test('once the host refused, the next handoff puts /compact in the prompt box and resumes after it', async ($, on) => {
+  const clock = mock.clock(on, { now: new Date(2026, 9, 2, 15, 30).getTime() })
+  const sent: string[] = []
+  const filled: string[] = []
+  const compacted: string[] = []
+  on('prompt.submit', async (_$, e) => {
+    sent.push((e as { text: string }).text)
+    return { text: (e as { text: string }).text } as never
+  })
+  on('prompt.fill', async (_$, e) => {
+    filled.push((e as { text: string }).text)
+    return { isFilled: true } as never
+  })
+  on('session.compact', async (_$, e) => {
+    compacted.push((e as { instructions?: string }).instructions ?? '')
+    return { messages: [{ role: 'user', text: 'summary', toolUses: [] }] } as never
+  })
+  on('tool.call', async () => ({ result: {} }) as never)
+  on('turn.complete', async () => ({ text: '' }))
+  on('ui.toast', async () => ({ value: undefined }) as never)
+
+  // An earlier refusal in this session, as the state holds it.
+  let seeded = false
+  on('state.set', async (_$, e, next) => {
+    if ((e as { key?: string }).key === 'noCompact') seeded = false
+    return next(e)
+  })
+  on('state.get', async (_$, e, next) => {
+    const got = await next(e)
+    if ((e as { key?: string }).key === 'noCompact' && !seeded) return { ...got, value: { ...(got as { value: object }).value, value: true } } as never
+    return got
+  })
+  await $.command.run({ command: 'handoff-compact', args: '' } as never)
+  await $.tool.call({ tool: 'Write', file_path: FILE, content: '---' } as never)
+  await $.turn.complete({ answer: 'saved', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never)
+  await clock.advance(15_000)
+  expect(filled).toEqual([compactLine(FILE)])
+  expect(compacted.length).toBe(0)
+
+  const ui = await $.ui.mount({
+    plugin: 'handoff-compact',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 } as never,
+  })
+  expect(await ui.find({ text: /run \/compact/ })).toBeDefined()
+
+  await $.session.compact({ instructions: resumeText(FILE), messages: [{ role: 'user', text: 'earlier', toolUses: [] }] } as never)
+  await clock.advance(0)
+  expect(sent.at(-1)).toBe(resumeText(FILE))
 })
