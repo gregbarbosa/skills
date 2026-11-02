@@ -4,11 +4,26 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Pending } from '../types'
 
 const COUNTDOWN_MS = 10_000
+// Messages no person typed. Any other origin, unknown ones included, counts as the user and cancels.
+const AUTOMATED_ORIGINS = new Set([
+  'task-notification',
+  'scheduled-trigger',
+  'peer',
+  'peer-send-message',
+  'projects-relay',
+  'coordinator',
+  'observer',
+  'observer-activity',
+  'plugin',
+  'unclassified',
+])
 const isArmed = atom({ plugin: 'handoff-compact', key: 'isArmed' } as const, false)
 const pending = atom({ plugin: 'handoff-compact', key: 'pending' } as const, null)
 const now = atom({ plugin: 'handoff-compact', key: 'now' } as const, 0)
 
 export const isHandoffFile = (path: string) => /\/\.claude\/handoffs\/.+\.md$/.test(path)
+
+export const isUserPrompt = (kind: string | undefined) => kind === undefined || !AUTOMATED_ORIGINS.has(kind)
 
 export const baseName = (path: string) => path.split('/').pop() ?? path
 
@@ -20,6 +35,7 @@ export const askText = (notes: string) =>
   [
     'Run the handoff skill now (Skill tool, skill "handoff").',
     notes ? `Context from the user for the handoff: ${notes}` : '',
+    'Save the handoff with the Write tool; the mod watches that tool to find the file.',
     'Skip its last step: the handoff-compact mod runs /compact and the resume prompt for you once your turn ends, so end the turn as soon as the file is saved and printed.',
   ]
     .filter(Boolean)
@@ -31,6 +47,15 @@ let timers: { cancel: () => void }[] = []
 function stopTimers() {
   for (const timer of timers) timer.cancel()
   timers = []
+}
+
+async function startCountdown($: EngineInterface, held: Pending) {
+  stopTimers()
+  const start = await $.clock.now()
+  await update($, now, () => start)
+  await update($, pending, () => ({ ...held, autoAt: start + COUNTDOWN_MS, retry: false }))
+  timers.push($.clock.every(1000, () => void $.clock.now().then(t => update($, now, () => t))))
+  timers.push($.clock.after(COUNTDOWN_MS, () => void compactNow($)))
 }
 
 async function compactNow($: EngineInterface) {
@@ -47,7 +72,9 @@ async function compactNow($: EngineInterface) {
     await update($, pending, () => null)
     void $.prompt.submit({ text: resumeText(held.path) })
   } catch (error) {
-    $.ui.toast(`Could not compact yet (${String(error).slice(0, 80)}). Press Compact now when the turn ends.`, {
+    // Most often a turn is running: an automated message arrived during the countdown.
+    await update($, pending, () => ({ ...held, autoAt: null, retry: true }))
+    $.ui.toast(`Could not compact yet (${String(error).slice(0, 80)}). The countdown starts again when the next turn ends.`, {
       timeoutMs: 8000,
     })
   }
@@ -88,14 +115,18 @@ export const register: Register = on => {
   })
 
   // Anything the user types takes over: no compaction happens behind their back.
+  // An automated message (a notification, another session) only defers the countdown to the end of its turn.
   on('prompt.submit', async ($, e, next) => {
-    if (e.origin?.kind === 'composer') {
-      const held = await read($, pending)
-      if (held?.autoAt) {
+    const held = await read($, pending)
+    if (isUserPrompt(e.origin?.kind)) {
+      if (held?.autoAt || held?.retry) {
         stopTimers()
-        await update($, pending, () => ({ ...held, autoAt: null }))
+        await update($, pending, () => ({ ...held, autoAt: null, retry: false }))
       }
       await update($, isArmed, () => false)
+    } else if (held?.autoAt) {
+      stopTimers()
+      await update($, pending, () => ({ ...held, autoAt: null, retry: true }))
     }
     return next(e)
   })
@@ -106,19 +137,18 @@ export const register: Register = on => {
 
     const armed = await read($, isArmed)
     const held = await read($, pending)
-    if (armed) {
-      await update($, isArmed, () => false)
-      if (!held) {
-        $.ui.toast('No handoff file was written, so nothing was compacted.', { timeoutMs: 8000 })
-        return done
-      }
-      const start = await $.clock.now()
-      await update($, now, () => start)
-      await update($, pending, () => ({ ...held, autoAt: start + COUNTDOWN_MS }))
-      stopTimers()
-      timers.push($.clock.every(1000, () => void $.clock.now().then(t => update($, now, () => t))))
-      timers.push($.clock.after(COUNTDOWN_MS, () => void compactNow($)))
+    if (!armed && !held?.retry) return done
+    await update($, isArmed, () => false)
+    if (!held) {
+      $.ui.toast('No handoff file was written, so nothing was compacted.', { timeoutMs: 8000 })
+      return done
     }
+    // An interrupted or failed turn waits for a press: the user may want to look first.
+    if (e.reason !== 'answer') {
+      await update($, pending, () => ({ ...held, autoAt: null, retry: false }))
+      return done
+    }
+    await startCountdown($, held)
     return done
   })
 

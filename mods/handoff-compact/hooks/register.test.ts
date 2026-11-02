@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { askText, isHandoffFile, resumeText } from './register'
+import { askText, isHandoffFile, isUserPrompt, resumeText } from './register'
 
 const FILE = '/home/user/.claude/handoffs/my-repo/2026-10-02-1530-mods.md'
 
@@ -68,6 +68,112 @@ test('typing during the countdown stops it', async ($, on) => {
   await $.tool.call({ tool: 'Write', file_path: FILE, content: '---' } as never)
   await $.turn.complete({ answer: 'saved', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never)
   await $.prompt.submit({ text: 'wait, one more thing', origin: { kind: 'composer' } } as never)
+  await clock.advance(15_000)
+  expect(compacted.length).toBe(0)
+})
+
+test('an automated message during the countdown defers it to the end of that turn', async ($, on) => {
+  const clock = mock.clock(on, { now: new Date(2026, 9, 2, 15, 30).getTime() })
+  const compacted: string[] = []
+  on('prompt.submit', async (_$, e) => ({ text: (e as { text: string }).text }) as never)
+  on('session.compact', async (_$, e) => {
+    compacted.push((e as { instructions?: string }).instructions ?? '')
+    return { messages: [{ role: 'user', text: 'summary', toolUses: [] }] } as never
+  })
+  on('tool.call', async () => ({ result: {} }) as never)
+  on('turn.complete', async () => ({ text: '' }))
+  on('ui.toast', async () => ({ value: undefined }) as never)
+
+  await $.command.run({ command: 'handoff-compact', args: '' } as never)
+  await $.tool.call({ tool: 'Write', file_path: FILE, content: '---' } as never)
+  await $.turn.complete({ answer: 'saved', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never)
+  await clock.advance(5_000)
+  await $.prompt.submit({ text: 'idle notice', origin: { kind: 'unclassified' } } as never)
+  await clock.advance(15_000)
+  expect(compacted.length).toBe(0)
+
+  await $.turn.complete({ answer: 'noted', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer' } as never)
+  await clock.advance(10_000)
+  expect(compacted).toEqual([resumeText(FILE)])
+})
+
+test('a compact refused mid-turn starts again when the turn ends', async ($, on) => {
+  const clock = mock.clock(on, { now: new Date(2026, 9, 2, 15, 30).getTime() })
+  const compacted: string[] = []
+  let busy = true
+  on('prompt.submit', async (_$, e) => ({ text: (e as { text: string }).text }) as never)
+  on('session.compact', async (_$, e) => {
+    if (busy) throw new Error('a turn is running')
+    compacted.push((e as { instructions?: string }).instructions ?? '')
+    return { messages: [{ role: 'user', text: 'summary', toolUses: [] }] } as never
+  })
+  on('tool.call', async () => ({ result: {} }) as never)
+  on('turn.complete', async () => ({ text: '' }))
+  on('ui.toast', async () => ({ value: undefined }) as never)
+
+  await $.command.run({ command: 'handoff-compact', args: '' } as never)
+  await $.tool.call({ tool: 'Write', file_path: FILE, content: '---' } as never)
+  await $.turn.complete({ answer: 'saved', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never)
+  await clock.advance(10_000)
+  expect(compacted.length).toBe(0)
+
+  busy = false
+  await $.turn.complete({ answer: 'other', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer' } as never)
+  await clock.advance(10_000)
+  expect(compacted).toEqual([resumeText(FILE)])
+})
+
+test('an interrupted turn waits for a press instead of counting down', async ($, on) => {
+  const clock = mock.clock(on, { now: new Date(2026, 9, 2, 15, 30).getTime() })
+  const compacted: string[] = []
+  on('prompt.submit', async (_$, e) => ({ text: (e as { text: string }).text }) as never)
+  on('session.compact', async (_$, e) => {
+    compacted.push((e as { instructions?: string }).instructions ?? '')
+    return { messages: [{ role: 'user', text: 'summary', toolUses: [] }] } as never
+  })
+  on('tool.call', async () => ({ result: {} }) as never)
+  on('turn.complete', async () => ({ text: '' }))
+
+  await $.command.run({ command: 'handoff-compact', args: '' } as never)
+  await $.tool.call({ tool: 'Write', file_path: FILE, content: '---' } as never)
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, turnId: 't1', reason: 'aborted' } as never)
+  await clock.advance(15_000)
+  expect(compacted.length).toBe(0)
+
+  const ui = await $.ui.mount({
+    plugin: 'handoff-compact',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120 } as never,
+  })
+  expect(await ui.find({ text: /Compact now/ })).toBeDefined()
+})
+
+test('knows automated prompts from the user', () => {
+  expect(isUserPrompt('composer')).toBe(true)
+  expect(isUserPrompt('sdk')).toBe(true)
+  expect(isUserPrompt(undefined)).toBe(true)
+  expect(isUserPrompt('a-kind-from-a-later-build')).toBe(true)
+  expect(isUserPrompt('unclassified')).toBe(false)
+  expect(isUserPrompt('peer')).toBe(false)
+})
+
+test('a Remote Control message counts as the user and stops the countdown', async ($, on) => {
+  const clock = mock.clock(on, { now: new Date(2026, 9, 2, 15, 30).getTime() })
+  const compacted: string[] = []
+  on('prompt.submit', async (_$, e) => ({ text: (e as { text: string }).text }) as never)
+  on('session.compact', async (_$, e) => {
+    compacted.push((e as { instructions?: string }).instructions ?? '')
+    return { messages: [{ role: 'user', text: 'summary', toolUses: [] }] } as never
+  })
+  on('tool.call', async () => ({ result: {} }) as never)
+  on('turn.complete', async () => ({ text: '' }))
+
+  await $.command.run({ command: 'handoff-compact', args: '' } as never)
+  await $.tool.call({ tool: 'Write', file_path: FILE, content: '---' } as never)
+  await $.turn.complete({ answer: 'saved', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never)
+  await $.prompt.submit({ text: 'hold on', origin: { kind: 'bridge' } } as never)
+  await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer' } as never)
   await clock.advance(15_000)
   expect(compacted.length).toBe(0)
 })

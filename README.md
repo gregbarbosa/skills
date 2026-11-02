@@ -109,7 +109,7 @@ The repo is also a Claude Code plugin marketplace (`.claude-plugin/marketplace.j
 
 | Mod | What it does |
 | --- | --- |
-| `handoff-compact` | `/handoff-compact [notes]` runs the `handoff` skill, then, once the file is saved under `~/.claude/handoffs/`, shows a band (`Handoff saved: <file> · compacting in 10s`, with Compact now and Cancel), compacts with the handoff's resume instructions and submits the resume prompt. Typing anything stops the countdown. Needs the `handoff` skill installed. |
+| `handoff-compact` | `/handoff-compact [notes]` runs the `handoff` skill, then, once the file is saved under `~/.claude/handoffs/`, shows a band (`Handoff saved: <file> · compacting in 10s`, with Compact now and Cancel), compacts with the handoff's resume instructions and submits the resume prompt. Typing anything (at the terminal or through Remote Control) stops the countdown. An automated message, such as a notification or another session's note, only pauses it: the countdown starts again when that turn ends. An interrupted or failed turn waits for Compact now. Needs the `handoff` skill installed. |
 
 Install from the prompt of a terminal Claude Code session, answering `y` to add the marketplace and choosing the user scope:
 
